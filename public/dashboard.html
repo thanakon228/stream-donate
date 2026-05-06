@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Donation Dashboard</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --primary: #7c3aed; --primary-light: #a78bfa; --primary-dark: #5b21b6;
+    --accent: #f59e0b; --bg: #0a0814; --card: #120f20; --card2: #1a1530;
+    --text: #f3f0ff; --muted: #8b7eb8; --border: #2d2356;
+    --success: #10b981; --error: #ef4444; --warn: #f59e0b;
+  }
+
+  body {
+    font-family: 'Kanit', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background: radial-gradient(ellipse 60% 40% at 10% 10%, rgba(124,58,237,.12) 0%, transparent 60%);
+    pointer-events: none; z-index: 0;
+  }
+
+  /* sidebar */
+  .sidebar {
+    position: fixed; left: 0; top: 0; bottom: 0; width: 220px;
+    background: var(--card);
+    border-right: 1px solid var(--border);
+    padding: 24px 0;
+    z-index: 10;
+    display: flex; flex-direction: column;
+  }
+
+  .sidebar-logo {
+    display: flex; align-items: center; gap: 10px;
+    padding: 0 20px 24px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 16px;
+  }
+
+  .sidebar-logo .icon {
+    width: 40px; height: 40px;
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+
+  .sidebar-logo span { font-weight: 700; font-size: 16px; }
+
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 11px 20px;
+    color: var(--muted);
+    cursor: pointer;
+    border-radius: 0;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all .2s;
+    border-left: 3px solid transparent;
+  }
+
+  .nav-item:hover { color: var(--text); background: rgba(124,58,237,.08); }
+  .nav-item.active {
+    color: var(--primary-light);
+    background: rgba(124,58,237,.12);
+    border-left-color: var(--primary-light);
+  }
+
+  .nav-item .nav-icon { font-size: 18px; width: 22px; text-align: center; }
+
+  .sidebar-bottom {
+    margin-top: auto;
+    padding: 16px 20px;
+    border-top: 1px solid var(--border);
+  }
+
+  .status-dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--success);
+    margin-right: 6px;
+    box-shadow: 0 0 6px var(--success);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  /* main */
+  .main {
+    margin-left: 220px;
+    padding: 32px;
+    position: relative; z-index: 1;
+    min-height: 100vh;
+  }
+
+  .page { display: none; }
+  .page.active { display: block; }
+
+  .page-title {
+    font-size: 22px; font-weight: 700;
+    margin-bottom: 24px;
+    display: flex; align-items: center; gap: 10px;
+  }
+
+  /* stat cards */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+
+  .stat-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+  }
+
+  .stat-label { font-size: 12px; color: var(--muted); font-weight: 500; text-transform: uppercase; letter-spacing: .5px; }
+  .stat-value { font-size: 28px; font-weight: 700; margin: 4px 0; }
+  .stat-sub { font-size: 12px; color: var(--muted); }
+
+  /* overlay link */
+  .overlay-link-card {
+    background: linear-gradient(135deg, rgba(124,58,237,.15), rgba(245,158,11,.08));
+    border: 1px solid rgba(124,58,237,.3);
+    border-radius: 16px;
+    padding: 20px 24px;
+    margin-bottom: 24px;
+    display: flex; align-items: center; gap: 16px;
+  }
+
+  .overlay-link-card .icon { font-size: 28px; }
+  .overlay-link-card .info h3 { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+  .overlay-link-card .info p { font-size: 12px; color: var(--muted); }
+
+  .copy-link-box {
+    display: flex; gap: 8px; margin-top: 10px;
+  }
+
+  .copy-link-box input {
+    flex: 1;
+    background: var(--card2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--muted);
+    font-family: 'Kanit', sans-serif;
+    font-size: 12px;
+    padding: 8px 12px;
+    outline: none;
+  }
+
+  .copy-btn {
+    background: var(--primary);
+    border: none; border-radius: 8px;
+    color: white; cursor: pointer;
+    font-family: 'Kanit', sans-serif;
+    font-size: 12px; font-weight: 600;
+    padding: 8px 14px;
+    white-space: nowrap;
+    transition: background .2s;
+  }
+
+  .copy-btn:hover { background: var(--primary-dark); }
+
+  /* donations table */
+  .table-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+
+  .table-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .table-header h3 { font-size: 15px; font-weight: 600; }
+
+  table { width: 100%; border-collapse: collapse; }
+  th { background: var(--card2); color: var(--muted); font-size: 11px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: .5px; padding: 10px 16px; text-align: left; }
+  td { padding: 12px 16px; font-size: 14px; border-bottom: 1px solid rgba(255,255,255,.04); }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(124,58,237,.04); }
+
+  .emotion-tag {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: rgba(124,58,237,.15);
+    border: 1px solid rgba(124,58,237,.2);
+    border-radius: 20px;
+    padding: 2px 10px;
+    font-size: 12px;
+    color: var(--primary-light);
+  }
+
+  .amount-cell { font-weight: 700; color: #a78bfa; }
+  .time-cell { font-size: 12px; color: var(--muted); }
+
+  /* settings */
+  .settings-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+
+  .setting-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+  }
+
+  .setting-card.full { grid-column: 1 / -1; }
+
+  .setting-card h3 {
+    font-size: 14px; font-weight: 600;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 8px;
+  }
+
+  .form-group { margin-bottom: 16px; }
+  .form-group label { display: block; font-size: 12px; color: var(--muted); font-weight: 500; margin-bottom: 6px; }
+
+  .form-group input, .form-group select, .form-group textarea {
+    width: 100%;
+    background: var(--card2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: 'Kanit', sans-serif;
+    font-size: 14px;
+    padding: 10px 14px;
+    outline: none;
+    transition: border-color .2s;
+  }
+
+  .form-group input:focus, .form-group select:focus {
+    border-color: var(--primary-light);
+    box-shadow: 0 0 0 3px rgba(124,58,237,.15);
+  }
+
+  .form-group input[type="password"] { letter-spacing: 2px; }
+
+  /* emotion editor */
+  .emotion-tabs {
+    display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px;
+  }
+
+  .emotion-tab {
+    background: var(--card2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--muted);
+    cursor: pointer;
+    font-family: 'Kanit', sans-serif;
+    font-size: 13px;
+    padding: 6px 12px;
+    transition: all .2s;
+  }
+
+  .emotion-tab.active {
+    background: rgba(124,58,237,.2);
+    border-color: var(--primary-light);
+    color: var(--primary-light);
+  }
+
+  .slider-group { margin-bottom: 14px; }
+  .slider-group label {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 12px; color: var(--muted); margin-bottom: 6px;
+  }
+
+  .slider-group label span { color: var(--primary-light); font-weight: 600; }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    width: 100%; height: 6px;
+    background: var(--card2);
+    border-radius: 3px;
+    outline: none;
+    padding: 0; border: none;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--primary-light);
+    cursor: pointer;
+    box-shadow: 0 0 8px rgba(124,58,237,.5);
+  }
+
+  .checkbox-group {
+    display: flex; align-items: center; gap: 10px; cursor: pointer;
+  }
+
+  .checkbox-group input[type="checkbox"] {
+    width: 18px; height: 18px; cursor: pointer;
+    accent-color: var(--primary);
+  }
+
+  /* buttons */
+  .btn {
+    border: none; border-radius: 10px; cursor: pointer;
+    font-family: 'Kanit', sans-serif; font-size: 14px; font-weight: 600;
+    padding: 10px 20px; transition: all .2s;
+  }
+
+  .btn-primary { background: var(--primary); color: white; }
+  .btn-primary:hover { background: var(--primary-dark); }
+  .btn-success { background: var(--success); color: white; }
+  .btn-success:hover { filter: brightness(1.1); }
+  .btn-warn { background: var(--warn); color: #1a1133; }
+  .btn-warn:hover { filter: brightness(1.1); }
+  .btn-outline {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+  }
+  .btn-outline:hover { border-color: var(--primary-light); color: var(--primary-light); }
+  .btn-sm { padding: 7px 14px; font-size: 13px; }
+
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+
+  /* voice selector */
+  #voiceList { max-height: 200px; overflow-y: auto; margin-top: 8px; }
+  .voice-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 12px; border-radius: 8px; cursor: pointer;
+    font-size: 13px; transition: background .2s;
+  }
+  .voice-item:hover { background: rgba(124,58,237,.1); }
+  .voice-item.selected { background: rgba(124,58,237,.2); color: var(--primary-light); }
+
+  /* toast */
+  .toast {
+    position: fixed; top: 24px; right: 24px;
+    background: var(--success); color: white;
+    border-radius: 12px; padding: 12px 20px;
+    font-size: 14px; font-weight: 600; z-index: 9999;
+    transform: translateX(120%);
+    transition: transform .3s cubic-bezier(.34,1.56,.64,1);
+    box-shadow: 0 8px 24px rgba(0,0,0,.3);
+  }
+  .toast.show { transform: translateX(0); }
+  .toast.error { background: var(--error); }
+
+  /* test panel */
+  .test-emotions {
+    display: flex; gap: 8px; flex-wrap: wrap;
+  }
+
+  .test-btn {
+    background: var(--card2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--muted);
+    cursor: pointer;
+    font-family: 'Kanit', sans-serif;
+    font-size: 13px;
+    padding: 8px 14px;
+    transition: all .2s;
+    display: flex; align-items: center; gap: 6px;
+  }
+
+  .test-btn:hover { background: rgba(124,58,237,.15); border-color: var(--primary-light); color: var(--primary-light); }
+
+  .empty-state {
+    text-align: center; padding: 40px; color: var(--muted);
+    font-size: 14px;
+  }
+
+  .empty-state .emoji { font-size: 40px; display: block; margin-bottom: 12px; }
+
+  scrollbar-width: thin;
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<div class="sidebar">
+  <div class="sidebar-logo">
+    <div class="icon">🎁</div>
+    <span>Donate Admin</span>
+  </div>
+
+  <div class="nav-item active" onclick="showPage('overview')">
+    <span class="nav-icon">📊</span> ภาพรวม
+  </div>
+  <div class="nav-item" onclick="showPage('donations')">
+    <span class="nav-icon">💜</span> รายการบริจาค
+  </div>
+  <div class="nav-item" onclick="showPage('settings')">
+    <span class="nav-icon">⚙️</span> ตั้งค่า
+  </div>
+  <div class="nav-item" onclick="showPage('emotions')">
+    <span class="nav-icon">🎭</span> อารมณ์ TTS
+  </div>
+  <div class="nav-item" onclick="showPage('test')">
+    <span class="nav-icon">🧪</span> ทดสอบ Alert
+  </div>
+
+  <div class="sidebar-bottom">
+    <div style="font-size:12px; color:var(--muted)">
+      <span class="status-dot"></span>เซิร์ฟเวอร์ออนไลน์
+    </div>
+  </div>
+</div>
+
+<!-- Main Content -->
+<div class="main">
+
+  <!-- Overview -->
+  <div class="page active" id="page-overview">
+    <div class="page-title">📊 ภาพรวม</div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">บริจาคทั้งหมด</div>
+        <div class="stat-value" id="stat-total">0</div>
+        <div class="stat-sub">ครั้ง</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">ยอดรวม</div>
+        <div class="stat-value" id="stat-amount" style="color:#a78bfa">฿0</div>
+        <div class="stat-sub">THB</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">ยอดเฉลี่ย</div>
+        <div class="stat-value" id="stat-avg" style="color:#f59e0b">฿0</div>
+        <div class="stat-sub">ต่อครั้ง</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">สูงสุด</div>
+        <div class="stat-value" id="stat-max" style="color:#10b981">฿0</div>
+        <div class="stat-sub">ครั้งเดียว</div>
+      </div>
+    </div>
+
+    <div class="overlay-link-card">
+      <div class="icon">📺</div>
+      <div class="info" style="flex:1">
+        <h3>OBS Browser Source — Overlay URL</h3>
+        <p>เพิ่ม URL นี้เป็น Browser Source ใน OBS Studio (ขนาด 1920×1080, พื้นหลังโปร่งใส)</p>
+        <div class="copy-link-box">
+          <input type="text" id="overlayUrl" readonly>
+          <button class="copy-btn" onclick="copyUrl('overlayUrl')">📋 คัดลอก</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay-link-card" style="background:linear-gradient(135deg,rgba(245,158,11,.1),rgba(124,58,237,.08))">
+      <div class="icon">💜</div>
+      <div class="info" style="flex:1">
+        <h3>หน้า Donate สำหรับแชร์ให้ผู้ชม</h3>
+        <p>แชร์ลิงก์นี้ให้ผู้ชมบริจาค</p>
+        <div class="copy-link-box">
+          <input type="text" id="donateUrl" readonly>
+          <button class="copy-btn" onclick="copyUrl('donateUrl')">📋 คัดลอก</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <div class="table-header">
+        <h3>บริจาคล่าสุด (5 รายการ)</h3>
+        <button class="btn btn-outline btn-sm" onclick="showPage('donations')">ดูทั้งหมด →</button>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>ชื่อ</th><th>จำนวน</th><th>อารมณ์</th><th>ข้อความ</th><th>เวลา</th>
+          </tr>
+        </thead>
+        <tbody id="recent-donations-body">
+          <tr><td colspan="5" class="empty-state"><span class="emoji">💤</span>ยังไม่มีรายการ</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Donations -->
+  <div class="page" id="page-donations">
+    <div class="page-title">💜 รายการบริจาคทั้งหมด</div>
+    <div class="table-card">
+      <div class="table-header">
+        <h3 id="donations-count">รายการทั้งหมด</h3>
+        <button class="btn btn-outline btn-sm" onclick="loadDonations()">🔄 รีเฟรช</button>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th><th>ชื่อ</th><th>จำนวน</th><th>อารมณ์</th><th>ข้อความ</th><th>เวลา</th>
+          </tr>
+        </thead>
+        <tbody id="all-donations-body">
+          <tr><td colspan="6" class="empty-state"><span class="emoji">💤</span>ยังไม่มีรายการ</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Settings -->
+  <div class="page" id="page-settings">
+    <div class="page-title">⚙️ ตั้งค่าระบบ</div>
+    <div class="settings-grid">
+
+      <div class="setting-card">
+        <h3>🔑 ElevenLabs API</h3>
+        <div class="form-group">
+          <label>API Key</label>
+          <input type="password" id="cfg-apiKey" placeholder="xi-...">
+        </div>
+        <div class="form-group">
+          <label>Voice ID</label>
+          <input type="text" id="cfg-voiceId" placeholder="EXAVITQu4vr4xnSDxMaL">
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="fetchVoices()">🔍 ค้นหาเสียงที่มี</button>
+        <div id="voiceList"></div>
+        <div class="form-group" style="margin-top:16px">
+          <label>โมเดล TTS</label>
+          <select id="cfg-modelId" onchange="updateModelDesc()">
+            <option value="eleven_v3">v3 — คุณภาพสูงสุด 🌟 รองรับภาษาไทย (ใหม่ล่าสุด)</option>
+            <option value="eleven_multilingual_v2">Multilingual v2 — รองรับภาษาไทย ✅ (แนะนำ)</option>
+            <option value="eleven_flash_v2_5">Flash v2.5 — เร็วสุด ⚡ ประหยัด Credits</option>
+            <option value="eleven_turbo_v2_5">Turbo v2.5 — เร็ว + คุณภาพสูง 🚀</option>
+            <option value="eleven_turbo_v2">Turbo v2 — English เร็ว (ไม่รองรับไทย)</option>
+            <option value="eleven_monolingual_v1">Monolingual v1 — English เท่านั้น</option>
+          </select>
+          <div id="model-desc" style="font-size:11px;color:var(--muted);margin-top:6px;padding:8px 10px;background:var(--card2);border-radius:8px;line-height:1.6"></div>
+        </div>
+      </div>
+
+      <div class="setting-card">
+        <h3>💰 การบริจาค</h3>
+        <div class="form-group">
+          <label>ชื่อสตรีม</label>
+          <input type="text" id="cfg-streamTitle" placeholder="Stream Donate">
+        </div>
+        <div class="form-group">
+          <label>ยอดขั้นต่ำ</label>
+          <input type="number" id="cfg-minDonate" placeholder="20">
+        </div>
+        <div class="form-group">
+          <label>สกุลเงิน</label>
+          <select id="cfg-currency">
+            <option value="THB">THB (บาท)</option>
+            <option value="USD">USD</option>
+            <option value="JPY">JPY</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>ระยะเวลาแสดง Alert (วินาที)</label>
+          <input type="number" id="cfg-alertDuration" placeholder="8" min="3" max="30">
+        </div>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="saveSettings()">💾 บันทึกการตั้งค่า</button>
+    </div>
+  </div>
+
+  <!-- Emotions -->
+  <div class="page" id="page-emotions">
+    <div class="page-title">🎭 ตั้งค่าอารมณ์ TTS</div>
+    <div class="settings-grid">
+      <div class="setting-card full">
+        <h3>🎛️ Voice Settings ตามอารมณ์</h3>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:16px">
+          ปรับค่า ElevenLabs Voice Settings สำหรับแต่ละอารมณ์
+          ค่า Stability สูง = เสียงสม่ำเสมอ, Similarity สูง = ใกล้เคียงเสียงต้นแบบ,
+          Style สูง = แสดงอารมณ์มากขึ้น
+        </p>
+        <div class="emotion-tabs" id="emotionTabs">
+          <button class="emotion-tab active" onclick="selectEmotionTab(this,'neutral')">😐 ปกติ</button>
+          <button class="emotion-tab" onclick="selectEmotionTab(this,'happy')">😊 มีความสุข</button>
+          <button class="emotion-tab" onclick="selectEmotionTab(this,'excited')">🤩 ตื่นเต้น</button>
+          <button class="emotion-tab" onclick="selectEmotionTab(this,'sad')">😢 เศร้า</button>
+          <button class="emotion-tab" onclick="selectEmotionTab(this,'angry')">😠 โกรธ</button>
+          <button class="emotion-tab" onclick="selectEmotionTab(this,'whispering')">🤫 กระซิบ</button>
+        </div>
+
+        <div id="emotionEditor">
+          <div class="slider-group">
+            <label>Stability <span id="val-stability">0.5</span></label>
+            <input type="range" id="em-stability" min="0" max="1" step="0.05" value="0.5"
+              oninput="document.getElementById('val-stability').textContent=this.value">
+          </div>
+          <div class="slider-group">
+            <label>Similarity Boost <span id="val-similarity">0.75</span></label>
+            <input type="range" id="em-similarity" min="0" max="1" step="0.05" value="0.75"
+              oninput="document.getElementById('val-similarity').textContent=this.value">
+          </div>
+          <div class="slider-group">
+            <label>Style (Exaggeration) <span id="val-style">0.0</span></label>
+            <input type="range" id="em-style" min="0" max="1" step="0.05" value="0"
+              oninput="document.getElementById('val-style').textContent=this.value">
+          </div>
+          <div class="form-group">
+            <div class="checkbox-group">
+              <input type="checkbox" id="em-speakerBoost" checked>
+              <label style="margin:0;color:var(--text);font-size:14px">Use Speaker Boost</label>
+            </div>
+          </div>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="saveEmotions()">💾 บันทึก Emotions</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Test -->
+  <div class="page" id="page-test">
+    <div class="page-title">🧪 ทดสอบ Alert</div>
+    <div class="setting-card" style="max-width:600px">
+      <h3>🔔 ส่ง Test Alert ไปยัง Overlay</h3>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:20px">
+        ทดสอบการแสดงผลและเสียง TTS บน Overlay โดยไม่ต้องบริจาคจริง
+      </p>
+      <label style="font-size:13px;color:var(--muted);display:block;margin-bottom:10px">เลือกอารมณ์ที่จะทดสอบ</label>
+      <div class="test-emotions">
+        <button class="test-btn" onclick="sendTest('neutral')">😐 ปกติ</button>
+        <button class="test-btn" onclick="sendTest('happy')">😊 มีความสุข</button>
+        <button class="test-btn" onclick="sendTest('excited')">🤩 ตื่นเต้น</button>
+        <button class="test-btn" onclick="sendTest('sad')">😢 เศร้า</button>
+        <button class="test-btn" onclick="sendTest('angry')">😠 โกรธ</button>
+        <button class="test-btn" onclick="sendTest('whispering')">🤫 กระซิบ</button>
+      </div>
+      <p style="font-size:12px;color:var(--muted);margin-top:16px">
+        ⚠️ ต้องเปิดหน้า Overlay ไว้เพื่อรับ Alert (เปิดใน OBS หรือแท็บอื่น)
+      </p>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const EMOTIONS_META = {
+    neutral:    { icon:'😐', label:'ปกติ' },
+    happy:      { icon:'😊', label:'มีความสุข' },
+    excited:    { icon:'🤩', label:'ตื่นเต้น' },
+    sad:        { icon:'😢', label:'เศร้า' },
+    angry:      { icon:'😠', label:'โกรธ' },
+    whispering: { icon:'🤫', label:'กระซิบ' },
+  };
+
+  let cfg = {};
+  let currentEmotionTab = 'neutral';
+  let emotionEdits = {};
+
+  // nav
+  function showPage(id) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById('page-'+id).classList.add('active');
+    event.currentTarget.classList.add('active');
+    if (id === 'donations') loadDonations();
+    if (id === 'overview') loadOverview();
+  }
+
+  function showToast(msg, err=false) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast' + (err?' error':'');
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3000);
+  }
+
+  // init urls
+  function initUrls() {
+    const base = window.location.origin;
+    document.getElementById('overlayUrl').value = base + '/overlay.html';
+    document.getElementById('donateUrl').value = base + '/donate.html';
+  }
+
+  function copyUrl(id) {
+    const el = document.getElementById(id);
+    navigator.clipboard.writeText(el.value).then(() => showToast('✅ คัดลอกแล้ว!'));
+  }
+
+  // load config
+  async function loadConfig() {
+    const r = await fetch('/api/config/full');
+    cfg = await r.json();
+    document.getElementById('cfg-apiKey').value = cfg.elevenLabsKey || '';
+    document.getElementById('cfg-voiceId').value = cfg.voiceId || '';
+    document.getElementById('cfg-modelId').value = cfg.modelId || 'eleven_multilingual_v2';
+    document.getElementById('cfg-streamTitle').value = cfg.streamTitle || '';
+    document.getElementById('cfg-minDonate').value = cfg.minDonate || 20;
+    document.getElementById('cfg-currency').value = cfg.currency || 'THB';
+    document.getElementById('cfg-alertDuration').value = cfg.alertDuration || 8;
+    updateModelDesc();
+    emotionEdits = JSON.parse(JSON.stringify(cfg.emotions || {}));
+    loadEmotionTab('neutral');
+  }
+
+  const MODEL_DESC = {
+    'eleven_v3':              '🌟 โมเดลใหม่ล่าสุด คุณภาพเสียงสูงสุด รองรับหลายภาษารวมถึงภาษาไทย — ใช้ Credits มากกว่า v2 เล็กน้อย',
+    'eleven_multilingual_v2': '🌍 รองรับ 29 ภาษารวมถึงภาษาไทย คุณภาพสูง ใช้ Credits ปานกลาง — <strong>แนะนำสำหรับสตรีมภาษาไทย</strong>',
+    'eleven_flash_v2_5':      '⚡ เร็วที่สุด ~75ms latency ประหยัด Credits มาก รองรับหลายภาษา เหมาะกับ Donate จำนวนมาก',
+    'eleven_turbo_v2_5':      '🚀 สมดุลระหว่างความเร็วและคุณภาพ รองรับ 32 ภาษา ใช้ Credits น้อยกว่า Multilingual v2',
+    'eleven_turbo_v2':        '🔤 English เท่านั้น เร็ว ประหยัด — ไม่แนะนำถ้าอ่านภาษาไทย',
+    'eleven_monolingual_v1':  '🔤 English เท่านั้น รุ่นเก่า คุณภาพต่ำกว่า — ไม่แนะนำ',
+  };
+
+  function updateModelDesc() {
+    const sel = document.getElementById('cfg-modelId');
+    const desc = document.getElementById('model-desc');
+    if (sel && desc) desc.innerHTML = MODEL_DESC[sel.value] || '';
+  }
+
+  async function saveSettings() {
+    const body = {
+      elevenLabsKey: document.getElementById('cfg-apiKey').value,
+      voiceId: document.getElementById('cfg-voiceId').value,
+      modelId: document.getElementById('cfg-modelId').value,
+      streamTitle: document.getElementById('cfg-streamTitle').value,
+      minDonate: Number(document.getElementById('cfg-minDonate').value),
+      currency: document.getElementById('cfg-currency').value,
+      alertDuration: Number(document.getElementById('cfg-alertDuration').value),
+    };
+    await fetch('/api/config', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+    showToast('✅ บันทึกการตั้งค่าแล้ว');
+    loadConfig();
+  }
+
+  // voices
+  async function fetchVoices() {
+    const key = document.getElementById('cfg-apiKey').value;
+    if (!key) return showToast('⚠️ ใส่ API Key ก่อน', true);
+    // save key temporarily
+    await fetch('/api/config', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ elevenLabsKey: key }) });
+    const r = await fetch('/api/voices');
+    const voices = await r.json();
+    const list = document.getElementById('voiceList');
+    const currentVoiceId = document.getElementById('cfg-voiceId').value;
+    if (!voices.length) { list.innerHTML = '<p style="font-size:13px;color:var(--muted);padding:8px">ไม่พบเสียง หรือ API Key ไม่ถูกต้อง</p>'; return; }
+    list.innerHTML = voices.map(v => `
+      <div class="voice-item ${v.voice_id===currentVoiceId?'selected':''}"
+        onclick="selectVoice('${v.voice_id}','${v.name}',this)">
+        <span>${v.name}</span>
+        <span style="font-size:11px;color:var(--muted)">${v.category||''}</span>
+      </div>`).join('');
+  }
+
+  function selectVoice(id, name, el) {
+    document.querySelectorAll('.voice-item').forEach(v => v.classList.remove('selected'));
+    el.classList.add('selected');
+    document.getElementById('cfg-voiceId').value = id;
+  }
+
+  // emotions
+  function selectEmotionTab(el, emotion) {
+    saveCurrentEmotionTab();
+    document.querySelectorAll('.emotion-tab').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+    currentEmotionTab = emotion;
+    loadEmotionTab(emotion);
+  }
+
+  function saveCurrentEmotionTab() {
+    emotionEdits[currentEmotionTab] = {
+      stability:      parseFloat(document.getElementById('em-stability').value),
+      similarity_boost: parseFloat(document.getElementById('em-similarity').value),
+      style:          parseFloat(document.getElementById('em-style').value),
+      use_speaker_boost: document.getElementById('em-speakerBoost').checked,
+    };
+  }
+
+  function loadEmotionTab(emotion) {
+    const e = emotionEdits[emotion] || { stability:.5, similarity_boost:.75, style:0, use_speaker_boost:true };
+    document.getElementById('em-stability').value = e.stability;
+    document.getElementById('val-stability').textContent = e.stability;
+    document.getElementById('em-similarity').value = e.similarity_boost;
+    document.getElementById('val-similarity').textContent = e.similarity_boost;
+    document.getElementById('em-style').value = e.style;
+    document.getElementById('val-style').textContent = e.style;
+    document.getElementById('em-speakerBoost').checked = e.use_speaker_boost !== false;
+  }
+
+  async function saveEmotions() {
+    saveCurrentEmotionTab();
+    await fetch('/api/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ emotions: emotionEdits }),
+    });
+    showToast('✅ บันทึก Emotions แล้ว');
+  }
+
+  // donations
+  function fmtTime(ts) {
+    const d = new Date(ts);
+    return d.toLocaleDateString('th-TH') + ' ' + d.toLocaleTimeString('th-TH', { hour:'2-digit', minute:'2-digit' });
+  }
+
+  function donationRow(d, idx) {
+    const em = EMOTIONS_META[d.emotion] || EMOTIONS_META.neutral;
+    return `<tr>
+      ${idx !== undefined ? `<td style="color:var(--muted);font-size:12px">#${idx+1}</td>` : ''}
+      <td><strong>${d.name}</strong>${d.isTest?' <span style="font-size:11px;color:var(--warn)">[TEST]</span>':''}</td>
+      <td class="amount-cell">฿${Number(d.amount).toLocaleString()}</td>
+      <td><span class="emotion-tag">${em.icon} ${em.label}</span></td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-size:13px">${d.message||'—'}</td>
+      <td class="time-cell">${fmtTime(d.timestamp)}</td>
+    </tr>`;
+  }
+
+  async function loadOverview() {
+    const r = await fetch('/api/donations');
+    const list = await r.json();
+    const total = list.length;
+    const sum = list.reduce((a,d)=>a+d.amount,0);
+    const avg = total ? Math.round(sum/total) : 0;
+    const max = total ? Math.max(...list.map(d=>d.amount)) : 0;
+    document.getElementById('stat-total').textContent = total;
+    document.getElementById('stat-amount').textContent = '฿'+sum.toLocaleString();
+    document.getElementById('stat-avg').textContent = '฿'+avg.toLocaleString();
+    document.getElementById('stat-max').textContent = '฿'+max.toLocaleString();
+    const tbody = document.getElementById('recent-donations-body');
+    const recent = list.slice(0,5);
+    tbody.innerHTML = recent.length
+      ? recent.map(d=>donationRow(d)).join('')
+      : '<tr><td colspan="5"><div class="empty-state"><span class="emoji">💤</span>ยังไม่มีรายการ</div></td></tr>';
+  }
+
+  async function loadDonations() {
+    const r = await fetch('/api/donations');
+    const list = await r.json();
+    document.getElementById('donations-count').textContent = `รายการทั้งหมด (${list.length})`;
+    const tbody = document.getElementById('all-donations-body');
+    tbody.innerHTML = list.length
+      ? list.map((d,i)=>donationRow(d,i)).join('')
+      : '<tr><td colspan="6"><div class="empty-state"><span class="emoji">💤</span>ยังไม่มีรายการ</div></td></tr>';
+  }
+
+  // test alert
+  async function sendTest(emotion) {
+    const r = await fetch('/api/test-alert', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ emotion }),
+    });
+    if (r.ok) showToast(`🧪 ส่ง Test Alert (${EMOTIONS_META[emotion]?.label}) แล้ว!`);
+    else showToast('❌ เกิดข้อผิดพลาด', true);
+  }
+
+  // init
+  initUrls();
+  loadConfig();
+  loadOverview();
+</script>
+</body>
+</html>

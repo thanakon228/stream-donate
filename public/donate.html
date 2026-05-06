@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Donate</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --primary: #7c3aed;
+    --primary-light: #a78bfa;
+    --primary-dark: #5b21b6;
+    --accent: #f59e0b;
+    --bg: #0f0a1e;
+    --card: #1a1133;
+    --card2: #231845;
+    --text: #f3f0ff;
+    --muted: #9d8ec4;
+    --border: #3d2e6b;
+    --success: #10b981;
+    --error: #ef4444;
+  }
+
+  body {
+    font-family: 'Kanit', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+  }
+
+  /* animated background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 80% 50% at 20% 20%, rgba(124,58,237,.15) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 40% at 80% 80%, rgba(245,158,11,.08) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    width: 100%;
+    max-width: 520px;
+    position: relative;
+    z-index: 1;
+  }
+
+  header {
+    text-align: center;
+    padding: 32px 0 24px;
+  }
+
+  .logo {
+    width: 72px;
+    height: 72px;
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    border-radius: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    margin-bottom: 12px;
+    box-shadow: 0 8px 32px rgba(124,58,237,.4);
+  }
+
+  h1 { font-size: 28px; font-weight: 700; letter-spacing: .5px; }
+  h1 span { color: var(--primary-light); }
+  .subtitle { color: var(--muted); font-size: 14px; margin-top: 4px; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 28px;
+    margin-bottom: 16px;
+    box-shadow: 0 4px 24px rgba(0,0,0,.3);
+  }
+
+  .section-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 12px;
+  }
+
+  label {
+    display: block;
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 6px;
+    font-weight: 500;
+  }
+
+  input, textarea, select {
+    width: 100%;
+    background: var(--card2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: var(--text);
+    font-family: 'Kanit', sans-serif;
+    font-size: 15px;
+    padding: 12px 16px;
+    outline: none;
+    transition: border-color .2s, box-shadow .2s;
+  }
+
+  input:focus, textarea:focus, select:focus {
+    border-color: var(--primary-light);
+    box-shadow: 0 0 0 3px rgba(124,58,237,.2);
+  }
+
+  textarea { resize: vertical; min-height: 90px; }
+
+  .input-group { margin-bottom: 16px; }
+
+  .amount-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 10px;
+    align-items: end;
+  }
+
+  .currency-badge {
+    background: var(--primary);
+    color: white;
+    border-radius: 10px;
+    padding: 12px 18px;
+    font-weight: 600;
+    font-size: 15px;
+    white-space: nowrap;
+  }
+
+  .quick-amounts {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+  }
+
+  .quick-btn {
+    background: var(--card2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--muted);
+    cursor: pointer;
+    font-family: 'Kanit', sans-serif;
+    font-size: 13px;
+    padding: 6px 14px;
+    transition: all .2s;
+  }
+
+  .quick-btn:hover, .quick-btn.active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: white;
+  }
+
+  /* emotion picker */
+  .emotion-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+
+  .emotion-btn {
+    background: var(--card2);
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    color: var(--muted);
+    cursor: pointer;
+    font-family: 'Kanit', sans-serif;
+    font-size: 13px;
+    padding: 10px 8px;
+    text-align: center;
+    transition: all .2s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .emotion-btn .emoji { font-size: 22px; }
+  .emotion-btn:hover { border-color: var(--primary-light); color: var(--primary-light); }
+  .emotion-btn.selected {
+    background: rgba(124,58,237,.2);
+    border-color: var(--primary-light);
+    color: var(--primary-light);
+  }
+
+  .char-count {
+    text-align: right;
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  .submit-btn {
+    width: 100%;
+    background: linear-gradient(135deg, var(--primary), #9333ea);
+    border: none;
+    border-radius: 14px;
+    color: white;
+    cursor: pointer;
+    font-family: 'Kanit', sans-serif;
+    font-size: 17px;
+    font-weight: 600;
+    padding: 16px;
+    transition: all .2s;
+    box-shadow: 0 4px 20px rgba(124,58,237,.4);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .submit-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(124,58,237,.5); }
+  .submit-btn:active { transform: translateY(0); }
+  .submit-btn:disabled { opacity: .6; cursor: not-allowed; transform: none; }
+
+  .submit-btn .spinner {
+    display: none;
+    width: 20px; height: 20px;
+    border: 3px solid rgba(255,255,255,.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+    margin: 0 auto;
+  }
+
+  .submit-btn.loading .btn-text { display: none; }
+  .submit-btn.loading .spinner { display: block; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .toast {
+    position: fixed;
+    top: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-80px);
+    background: var(--success);
+    color: white;
+    border-radius: 12px;
+    padding: 14px 24px;
+    font-weight: 600;
+    font-size: 15px;
+    z-index: 9999;
+    transition: transform .4s cubic-bezier(.34,1.56,.64,1);
+    box-shadow: 0 8px 24px rgba(0,0,0,.3);
+    text-align: center;
+    min-width: 260px;
+  }
+
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast.error { background: var(--error); }
+
+  .min-note {
+    text-align: center;
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 8px;
+  }
+
+  footer {
+    text-align: center;
+    color: var(--muted);
+    font-size: 12px;
+    padding: 24px 0;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div class="logo">🎁</div>
+    <h1 id="streamTitle">Stream <span>Donate</span></h1>
+    <p class="subtitle">ส่งความรักให้สตรีมเมอร์คุณชื่นชอบ</p>
+  </header>
+
+  <div class="card">
+    <div class="section-title">ข้อมูลผู้บริจาค</div>
+    <div class="input-group">
+      <label>ชื่อของคุณ *</label>
+      <input type="text" id="donorName" placeholder="ใส่ชื่อของคุณ" maxlength="50">
+    </div>
+    <div class="input-group">
+      <label>จำนวนเงิน *</label>
+      <div class="amount-row">
+        <input type="number" id="donateAmount" placeholder="0" min="1">
+        <div class="currency-badge" id="currencyBadge">THB</div>
+      </div>
+      <div class="quick-amounts" id="quickAmounts">
+        <button class="quick-btn" onclick="setAmount(20)">฿20</button>
+        <button class="quick-btn" onclick="setAmount(50)">฿50</button>
+        <button class="quick-btn" onclick="setAmount(100)">฿100</button>
+        <button class="quick-btn" onclick="setAmount(200)">฿200</button>
+        <button class="quick-btn" onclick="setAmount(500)">฿500</button>
+        <button class="quick-btn" onclick="setAmount(1000)">฿1,000</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-title">ข้อความ & อารมณ์</div>
+    <div class="input-group">
+      <label>ข้อความ (จะถูกอ่านออกเสียง)</label>
+      <textarea id="donateMessage" placeholder="พิมพ์ข้อความที่ต้องการให้อ่าน..." maxlength="300"
+        oninput="updateCharCount()"></textarea>
+      <div class="char-count"><span id="charCount">0</span>/300</div>
+    </div>
+    <div class="input-group">
+      <label>เลือกอารมณ์ในการอ่าน</label>
+      <div class="emotion-grid">
+        <button class="emotion-btn selected" data-emotion="neutral" onclick="selectEmotion(this)">
+          <span class="emoji">😐</span>ปกติ
+        </button>
+        <button class="emotion-btn" data-emotion="happy" onclick="selectEmotion(this)">
+          <span class="emoji">😊</span>มีความสุข
+        </button>
+        <button class="emotion-btn" data-emotion="excited" onclick="selectEmotion(this)">
+          <span class="emoji">🤩</span>ตื่นเต้น
+        </button>
+        <button class="emotion-btn" data-emotion="sad" onclick="selectEmotion(this)">
+          <span class="emoji">😢</span>เศร้า
+        </button>
+        <button class="emotion-btn" data-emotion="angry" onclick="selectEmotion(this)">
+          <span class="emoji">😠</span>โกรธ
+        </button>
+        <button class="emotion-btn" data-emotion="whispering" onclick="selectEmotion(this)">
+          <span class="emoji">🤫</span>กระซิบ
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <button class="submit-btn" id="submitBtn" onclick="submitDonate()">
+    <span class="btn-text">💜 ส่งการบริจาค</span>
+    <div class="spinner"></div>
+  </button>
+  <p class="min-note" id="minNote">ยอดบริจาคขั้นต่ำ 20 THB</p>
+
+  <footer>Powered by ElevenLabs TTS · Stream Donate System</footer>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  let selectedEmotion = 'neutral';
+
+  async function loadConfig() {
+    try {
+      const r = await fetch('/api/config');
+      const cfg = await r.json();
+      document.getElementById('streamTitle').innerHTML = cfg.streamTitle
+        ? cfg.streamTitle.replace(/(\S+)$/, '<span>$1</span>')
+        : 'Stream <span>Donate</span>';
+      document.getElementById('currencyBadge').textContent = cfg.currency || 'THB';
+      document.getElementById('minNote').textContent =
+        `ยอดบริจาคขั้นต่ำ ${cfg.minDonate || 20} ${cfg.currency || 'THB'}`;
+    } catch(e) {}
+  }
+
+  function setAmount(v) {
+    document.getElementById('donateAmount').value = v;
+    document.querySelectorAll('.quick-btn').forEach(b => {
+      b.classList.toggle('active', parseInt(b.textContent.replace(/[฿,]/g,'')) === v);
+    });
+  }
+
+  function selectEmotion(el) {
+    document.querySelectorAll('.emotion-btn').forEach(b => b.classList.remove('selected'));
+    el.classList.add('selected');
+    selectedEmotion = el.dataset.emotion;
+  }
+
+  function updateCharCount() {
+    document.getElementById('charCount').textContent =
+      document.getElementById('donateMessage').value.length;
+  }
+
+  function showToast(msg, isError = false) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast' + (isError ? ' error' : '');
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3500);
+  }
+
+  async function submitDonate() {
+    const name = document.getElementById('donorName').value.trim();
+    const amount = document.getElementById('donateAmount').value;
+    const message = document.getElementById('donateMessage').value.trim();
+    const btn = document.getElementById('submitBtn');
+
+    if (!name) return showToast('⚠️ กรุณาใส่ชื่อของคุณ', true);
+    if (!amount || Number(amount) <= 0) return showToast('⚠️ กรุณาใส่จำนวนเงิน', true);
+
+    btn.disabled = true;
+    btn.classList.add('loading');
+
+    try {
+      const res = await fetch('/api/donate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, amount: Number(amount), message, emotion: selectedEmotion }),
+      });
+      const data = await res.json();
+      if (!res.ok) return showToast('❌ ' + (data.error || 'เกิดข้อผิดพลาด'), true);
+
+      showToast('🎉 ขอบคุณสำหรับการบริจาค!');
+      document.getElementById('donorName').value = '';
+      document.getElementById('donateAmount').value = '';
+      document.getElementById('donateMessage').value = '';
+      updateCharCount();
+      document.querySelectorAll('.quick-btn').forEach(b => b.classList.remove('active'));
+      selectEmotion(document.querySelector('[data-emotion="neutral"]'));
+    } catch(e) {
+      showToast('❌ ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์', true);
+    } finally {
+      btn.disabled = false;
+      btn.classList.remove('loading');
+    }
+  }
+
+  loadConfig();
+</script>
+</body>
+</html>
