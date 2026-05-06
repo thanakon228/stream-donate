@@ -17,6 +17,8 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+app.get('/', (req, res) => res.redirect('/donate.html'));
+
 const CONFIG_FILE = path.join(__dirname, 'config.json');
 const DONATIONS_FILE = path.join(__dirname, 'donations.json');
 
