@@ -33,12 +33,12 @@ function loadConfig() {
       streamTitle: 'Stream Donation',
       alertDuration: 8,
       emotions: {
-        happy: { stability: 0.3, similarity_boost: 0.8, style: 0.7, use_speaker_boost: true },
-        sad: { stability: 0.7, similarity_boost: 0.5, style: 0.3, use_speaker_boost: false },
-        excited: { stability: 0.1, similarity_boost: 0.9, style: 1.0, use_speaker_boost: true },
-        angry: { stability: 0.2, similarity_boost: 0.7, style: 0.8, use_speaker_boost: true },
-        neutral: { stability: 0.5, similarity_boost: 0.75, style: 0.0, use_speaker_boost: true },
-        whispering: { stability: 0.9, similarity_boost: 0.4, style: 0.1, use_speaker_boost: false },
+        happy:      { stability: 0.25, similarity_boost: 0.85, style: 0.75, use_speaker_boost: true },
+        sad:        { stability: 0.75, similarity_boost: 0.45, style: 0.4,  use_speaker_boost: false },
+        excited:    { stability: 0.05, similarity_boost: 0.95, style: 1.0,  use_speaker_boost: true },
+        angry:      { stability: 0.1,  similarity_boost: 0.8,  style: 0.9,  use_speaker_boost: true },
+        neutral:    { stability: 0.5,  similarity_boost: 0.75, style: 0.0,  use_speaker_boost: true },
+        whispering: { stability: 0.95, similarity_boost: 0.35, style: 0.05, use_speaker_boost: false },
       }
     };
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(defaults, null, 2));
@@ -108,10 +108,20 @@ app.post('/api/donate', async (req, res) => {
   if (cfg.elevenLabsKey && donation.message) {
     try {
       const voiceSettings = cfg.emotions[emotion] || cfg.emotions.neutral;
+      const emotionCues = {
+        happy:      '(พูดด้วยความสุขและยิ้มแย้ม) ',
+        excited:    '(พูดด้วยความตื่นเต้นและดีใจมากๆ) ',
+        sad:        '(พูดด้วยความเศร้าและหดหู่ใจ) ',
+        angry:      '(พูดด้วยความโกรธและไม่พอใจ) ',
+        whispering: '(กระซิบเบาๆ อย่างลึกลับ) ',
+        neutral:    '',
+      };
+      const cue = emotionCues[emotion] || '';
+      const ttsText = `${cue}${donation.name} บริจาค ${donation.amount} ${donation.currency} พร้อมข้อความว่า ${donation.message}`;
       const ttsRes = await axios.post(
         `https://api.elevenlabs.io/v1/text-to-speech/${cfg.voiceId}`,
         {
-          text: `${donation.name} บริจาค ${donation.amount} ${donation.currency} พร้อมข้อความว่า ${donation.message}`,
+          text: ttsText,
           model_id: cfg.modelId || 'eleven_multilingual_v2',
           voice_settings: voiceSettings,
         },
@@ -158,10 +168,20 @@ app.post('/api/test-alert', async (req, res) => {
   if (cfg.elevenLabsKey) {
     try {
       const voiceSettings = cfg.emotions[emotion] || cfg.emotions.neutral;
+      const emotionCues = {
+        happy:      '(พูดด้วยความสุขและยิ้มแย้ม) ',
+        excited:    '(พูดด้วยความตื่นเต้นและดีใจมากๆ) ',
+        sad:        '(พูดด้วยความเศร้าและหดหู่ใจ) ',
+        angry:      '(พูดด้วยความโกรธและไม่พอใจ) ',
+        whispering: '(กระซิบเบาๆ อย่างลึกลับ) ',
+        neutral:    '',
+      };
+      const cue = emotionCues[emotion] || '';
+      const ttsText = `${cue}${donation.name} บริจาค ${donation.amount} ${donation.currency} พร้อมข้อความว่า ${donation.message}`;
       const ttsRes = await axios.post(
         `https://api.elevenlabs.io/v1/text-to-speech/${cfg.voiceId}`,
         {
-          text: `${donation.name} บริจาค ${donation.amount} ${donation.currency} พร้อมข้อความว่า ${donation.message}`,
+          text: ttsText,
           model_id: cfg.modelId || 'eleven_multilingual_v2',
           voice_settings: voiceSettings,
         },
