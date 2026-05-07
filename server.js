@@ -21,6 +21,37 @@ app.get('/', (req, res) => res.redirect('/donate.html'));
 const CONFIG_FILE = path.join(__dirname, 'config.json');
 const DONATIONS_FILE = path.join(__dirname, 'donations.json');
 
+const DEFAULTS = {
+  theme: 'purple-galaxy',
+  ttsProvider: 'elevenlabs',
+  minDonate: 20,
+  currency: 'THB',
+  streamTitle: 'Stream Donation',
+  alertDuration: 8,
+  elevenLabsKey: '',
+  voiceId: 'EXAVITQu4vr4xnSDxMaL',
+  modelId: 'eleven_multilingual_v2',
+  emotions: {
+    happy:      { stability: 0.25, similarity_boost: 0.85, style: 0.75, use_speaker_boost: true },
+    sad:        { stability: 0.75, similarity_boost: 0.45, style: 0.4,  use_speaker_boost: false },
+    excited:    { stability: 0.05, similarity_boost: 0.95, style: 1.0,  use_speaker_boost: true },
+    angry:      { stability: 0.1,  similarity_boost: 0.8,  style: 0.9,  use_speaker_boost: true },
+    neutral:    { stability: 0.5,  similarity_boost: 0.75, style: 0.0,  use_speaker_boost: true },
+    whispering: { stability: 0.95, similarity_boost: 0.35, style: 0.05, use_speaker_boost: false },
+  },
+  googleTtsKey: '',
+  googleVoice: 'th-TH-Neural2-C',
+  googleLang: 'th-TH',
+  googleEmotions: {
+    neutral:    { speakingRate: 1.0,  pitch: 0,   volumeGainDb: 0  },
+    happy:      { speakingRate: 1.1,  pitch: 3,   volumeGainDb: 1  },
+    excited:    { speakingRate: 1.35, pitch: 5,   volumeGainDb: 3  },
+    sad:        { speakingRate: 0.85, pitch: -3,  volumeGainDb: -2 },
+    angry:      { speakingRate: 1.2,  pitch: -2,  volumeGainDb: 4  },
+    whispering: { speakingRate: 0.8,  pitch: -4,  volumeGainDb: -6 },
+  },
+};
+
 const EMOTION_CUES = {
   happy:      '(พูดด้วยความสุขและยิ้มแย้ม) ',
   excited:    '(พูดด้วยความตื่นเต้นและดีใจมากๆ) ',
@@ -31,44 +62,58 @@ const EMOTION_CUES = {
 };
 
 function loadConfig() {
+  let cfg;
   if (!fs.existsSync(CONFIG_FILE)) {
-    const defaults = {
-      // General
-      theme: 'purple-galaxy',
-      ttsProvider: 'elevenlabs',
-      minDonate: 20,
-      currency: 'THB',
-      streamTitle: 'Stream Donation',
-      alertDuration: 8,
-      // ElevenLabs
-      elevenLabsKey: '',
-      voiceId: 'EXAVITQu4vr4xnSDxMaL',
-      modelId: 'eleven_multilingual_v2',
-      emotions: {
-        happy:      { stability: 0.25, similarity_boost: 0.85, style: 0.75, use_speaker_boost: true },
-        sad:        { stability: 0.75, similarity_boost: 0.45, style: 0.4,  use_speaker_boost: false },
-        excited:    { stability: 0.05, similarity_boost: 0.95, style: 1.0,  use_speaker_boost: true },
-        angry:      { stability: 0.1,  similarity_boost: 0.8,  style: 0.9,  use_speaker_boost: true },
-        neutral:    { stability: 0.5,  similarity_boost: 0.75, style: 0.0,  use_speaker_boost: true },
-        whispering: { stability: 0.95, similarity_boost: 0.35, style: 0.05, use_speaker_boost: false },
-      },
-      // Google TTS
-      googleTtsKey: '',
-      googleVoice: 'th-TH-Neural2-C',
-      googleLang: 'th-TH',
-      googleEmotions: {
-        neutral:    { speakingRate: 1.0,  pitch: 0,   volumeGainDb: 0  },
-        happy:      { speakingRate: 1.1,  pitch: 3,   volumeGainDb: 1  },
-        excited:    { speakingRate: 1.35, pitch: 5,   volumeGainDb: 3  },
-        sad:        { speakingRate: 0.85, pitch: -3,  volumeGainDb: -2 },
-        angry:      { speakingRate: 1.2,  pitch: -2,  volumeGainDb: 4  },
-        whispering: { speakingRate: 0.8,  pitch: -4,  volumeGainDb: -6 },
-      },
+    cfg = JSON.parse(JSON.stringify(DEFAULTS));
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify(cfg, null, 2));
+  } else {
+    // Deep-merge: keep defaults for any missing nested keys
+    const saved = JSON.parse(fs.readFileSync(CONFIG_FILE));
+    cfg = {
+      ...DEFAULTS,
+      ...saved,
+      emotions:      { ...DEFAULTS.emotions,      ...(saved.emotions || {}) },
+      googleEmotions:{ ...DEFAULTS.googleEmotions, ...(saved.googleEmotions || {}) },
     };
-    fs.writeFileSync(CONFIG_FILE, JSON.stringify(defaults, null, 2));
-    return defaults;
   }
-  return JSON.parse(fs.readFileSync(CONFIG_FILE));
+
+  // ── Environment variable overrides ──────────────────────────
+  // Set these in Railway Variables panel for persistent storage.
+  // They always take priority over config.json.
+  const e = process.env;
+  if (e.ELEVENLABS_API_KEY) cfg.elevenLabsKey = e.ELEVENLABS_API_KEY;
+  if (e.ELEVEN_VOICE_ID)    cfg.voiceId       = e.ELEVEN_VOICE_ID;
+  if (e.ELEVEN_MODEL_ID)    cfg.modelId       = e.ELEVEN_MODEL_ID;
+  if (e.GOOGLE_TTS_KEY)     cfg.googleTtsKey  = e.GOOGLE_TTS_KEY;
+  if (e.GOOGLE_VOICE)       cfg.googleVoice   = e.GOOGLE_VOICE;
+  if (e.GOOGLE_LANG)        cfg.googleLang    = e.GOOGLE_LANG;
+  if (e.TTS_PROVIDER)       cfg.ttsProvider   = e.TTS_PROVIDER;
+  if (e.MIN_DONATE)         cfg.minDonate     = Number(e.MIN_DONATE);
+  if (e.CURRENCY)           cfg.currency      = e.CURRENCY;
+  if (e.STREAM_TITLE)       cfg.streamTitle   = e.STREAM_TITLE;
+  if (e.ALERT_DURATION)     cfg.alertDuration = Number(e.ALERT_DURATION);
+  if (e.THEME)              cfg.theme         = e.THEME;
+
+  return cfg;
+}
+
+// Track which keys came from env vars (so dashboard can show the indicator)
+function getEnvFlags() {
+  const e = process.env;
+  return {
+    elevenLabsKey: !!e.ELEVENLABS_API_KEY,
+    voiceId:       !!e.ELEVEN_VOICE_ID,
+    modelId:       !!e.ELEVEN_MODEL_ID,
+    googleTtsKey:  !!e.GOOGLE_TTS_KEY,
+    googleVoice:   !!e.GOOGLE_VOICE,
+    googleLang:    !!e.GOOGLE_LANG,
+    ttsProvider:   !!e.TTS_PROVIDER,
+    minDonate:     !!e.MIN_DONATE,
+    currency:      !!e.CURRENCY,
+    streamTitle:   !!e.STREAM_TITLE,
+    alertDuration: !!e.ALERT_DURATION,
+    theme:         !!e.THEME,
+  };
 }
 
 function saveConfig(cfg) {
@@ -151,10 +196,13 @@ app.get('/api/config', (req, res) => {
     ...cfg,
     elevenLabsKey: cfg.elevenLabsKey ? '***hidden***' : '',
     googleTtsKey:  cfg.googleTtsKey  ? '***hidden***' : '',
+    _envFlags: getEnvFlags(),
   });
 });
 
-app.get('/api/config/full', (req, res) => res.json(loadConfig()));
+app.get('/api/config/full', (req, res) => {
+  res.json({ ...loadConfig(), _envFlags: getEnvFlags() });
+});
 
 app.post('/api/config', (req, res) => {
   const updated = { ...loadConfig(), ...req.body };

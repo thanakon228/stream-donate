@@ -516,6 +516,38 @@
     font-size: 11px; font-weight: 700;
   }
   .theme-card.active .theme-check { display: flex; }
+
+  /* env-var badge */
+  .env-badge {
+    display: inline-flex; align-items: center; gap: 3px;
+    background: rgba(16,185,129,.15);
+    border: 1px solid rgba(16,185,129,.3);
+    border-radius: 6px;
+    color: #10b981;
+    font-size: 10px; font-weight: 600;
+    padding: 2px 8px; margin-left: 6px;
+  }
+  .env-locked input {
+    background: rgba(16,185,129,.05) !important;
+    border-color: rgba(16,185,129,.25) !important;
+    color: var(--muted) !important;
+    cursor: default;
+  }
+
+  /* railway vars box */
+  .railway-var-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 3px 0; flex-wrap: wrap;
+  }
+  .railway-var-key {
+    color: #60a5fa; font-weight: 700; min-width: 180px;
+  }
+  .railway-var-val {
+    color: #a3e635;
+  }
+  .railway-var-desc {
+    color: var(--muted); font-size: 11px; font-family: 'Kanit', sans-serif;
+  }
 </style>
 </head>
 <body>
@@ -671,8 +703,8 @@
       <!-- ElevenLabs settings -->
       <div class="setting-card" id="section-elevenlabs">
         <h3>🔑 ElevenLabs API</h3>
-        <div class="form-group">
-          <label>API Key</label>
+        <div class="form-group" id="fg-apiKey">
+          <label>API Key <span class="env-badge" id="env-badge-eleven" style="display:none">🔒 จาก Env Var</span></label>
           <input type="password" id="cfg-apiKey" placeholder="xi-...">
         </div>
         <div class="form-group">
@@ -698,8 +730,11 @@
       <!-- Google TTS settings -->
       <div class="setting-card" id="section-google" style="display:none">
         <h3>🔵 Google TTS API</h3>
-        <div class="form-group">
-          <label>API Key <a href="https://console.cloud.google.com/apis/credentials" target="_blank" style="color:var(--primary-light);font-size:11px">→ สร้างที่นี่</a></label>
+        <div class="form-group" id="fg-googleKey">
+          <label>API Key
+            <a href="https://console.cloud.google.com/apis/credentials" target="_blank" style="color:var(--primary-light);font-size:11px">→ สร้างที่นี่</a>
+            <span class="env-badge" id="env-badge-google" style="display:none">🔒 จาก Env Var</span>
+          </label>
           <input type="password" id="cfg-googleKey" placeholder="AIza...">
         </div>
         <div class="form-group">
@@ -760,6 +795,34 @@
     <div class="btn-row">
       <button class="btn btn-primary" onclick="saveSettings()">💾 บันทึกการตั้งค่า</button>
     </div>
+
+    <!-- Backup / Restore -->
+    <div class="setting-card full" style="margin-top:8px">
+      <h3>💾 สำรอง & กู้คืนการตั้งค่า</h3>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px">
+        Export ไฟล์เพื่อสำรองการตั้งค่าทั้งหมดรวมถึง API Key · Import เพื่อกู้คืนทุกครั้ง
+      </p>
+      <div class="btn-row" style="margin-top:0">
+        <button class="btn btn-outline" onclick="exportConfig()">⬇️ Export การตั้งค่า (.json)</button>
+        <button class="btn btn-outline" onclick="importConfig()">⬆️ Import การตั้งค่า (.json)</button>
+      </div>
+
+      <div style="margin-top:20px;padding:16px;background:rgba(59,130,246,.07);border:1px solid rgba(59,130,246,.2);border-radius:12px">
+        <div style="font-size:13px;font-weight:700;color:#60a5fa;margin-bottom:8px">
+          🚀 Railway — ตั้งค่าถาวรด้วย Environment Variables
+        </div>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.8">
+          Railway จะ <strong style="color:var(--text)">ลบการตั้งค่าทุกครั้งที่ redeploy</strong><br>
+          วิธีแก้: ไปที่ <strong style="color:#60a5fa">Railway → Project → Variables</strong> แล้วเพิ่มตัวแปรด้านล่าง จะไม่หายถาวร
+        </p>
+        <div id="env-vars-list" style="font-family:monospace;font-size:12px;background:var(--card2);border-radius:8px;padding:12px 16px;line-height:2.2"></div>
+        <p style="font-size:11px;color:var(--muted);margin-top:10px;line-height:1.7">
+          ⚡ ตัวแปรที่ตั้งใน Railway จะ <strong style="color:var(--text)">override</strong> ค่าใน Dashboard เสมอ<br>
+          ✅ ถ้าเห็นป้าย <span class="env-badge" style="display:inline-flex;position:relative">🔒 จาก Env Var</span> แปลว่าค่านี้ถูกตั้งถาวรแล้ว
+        </p>
+      </div>
+    </div>
+
   </div>
 
   <!-- Emotions -->
@@ -1018,6 +1081,8 @@
   async function loadConfig() {
     const r = await fetch('/api/config/full');
     cfg = await r.json();
+    const env = cfg._envFlags || {};
+
     // ElevenLabs
     document.getElementById('cfg-apiKey').value   = cfg.elevenLabsKey || '';
     document.getElementById('cfg-voiceId').value  = cfg.voiceId || '';
@@ -1043,6 +1108,99 @@
     googleEmotionEdits = JSON.parse(JSON.stringify(cfg.googleEmotions || {}));
     loadEmotionTab('neutral');
     loadGoogleEmotionTab('neutral');
+
+    // ── Env var badges ──────────────────────────────────────
+    setEnvBadge('env-badge-eleven', 'fg-apiKey', env.elevenLabsKey);
+    setEnvBadge('env-badge-google', 'fg-googleKey', env.googleTtsKey);
+
+    // ── Railway vars guide ──────────────────────────────────
+    renderEnvVarsList(cfg, env);
+  }
+
+  function setEnvBadge(badgeId, fgId, isEnv) {
+    const badge = document.getElementById(badgeId);
+    const fg    = document.getElementById(fgId);
+    if (!badge || !fg) return;
+    if (isEnv) {
+      badge.style.display = 'inline-flex';
+      fg.classList.add('env-locked');
+      fg.querySelector('input').readOnly = true;
+      fg.querySelector('input').title = 'ค่านี้ถูกกำหนดด้วย Environment Variable — แก้ไขที่ Railway Dashboard';
+    } else {
+      badge.style.display = 'none';
+      fg.classList.remove('env-locked');
+      fg.querySelector('input').readOnly = false;
+    }
+  }
+
+  function renderEnvVarsList(cfg, env) {
+    const box = document.getElementById('env-vars-list');
+    if (!box) return;
+    const vars = [
+      { key: 'ELEVENLABS_API_KEY', val: cfg.elevenLabsKey || '',       desc: 'ElevenLabs API Key',     secret: true,  set: env.elevenLabsKey },
+      { key: 'ELEVEN_VOICE_ID',    val: cfg.voiceId || '',             desc: 'Voice ID',                secret: false, set: env.voiceId },
+      { key: 'ELEVEN_MODEL_ID',    val: cfg.modelId || '',             desc: 'Model ID',                secret: false, set: env.modelId },
+      { key: 'GOOGLE_TTS_KEY',     val: cfg.googleTtsKey || '',        desc: 'Google TTS API Key',     secret: true,  set: env.googleTtsKey },
+      { key: 'GOOGLE_VOICE',       val: cfg.googleVoice || '',         desc: 'Google Voice Name',       secret: false, set: env.googleVoice },
+      { key: 'GOOGLE_LANG',        val: cfg.googleLang || '',          desc: 'Google Language Code',    secret: false, set: env.googleLang },
+      { key: 'TTS_PROVIDER',       val: cfg.ttsProvider || '',         desc: 'elevenlabs / google',     secret: false, set: env.ttsProvider },
+      { key: 'MIN_DONATE',         val: String(cfg.minDonate || ''),   desc: 'ยอดบริจาคขั้นต่ำ',       secret: false, set: env.minDonate },
+      { key: 'CURRENCY',           val: cfg.currency || '',            desc: 'สกุลเงิน เช่น THB',      secret: false, set: env.currency },
+      { key: 'STREAM_TITLE',       val: cfg.streamTitle || '',         desc: 'ชื่อสตรีม',              secret: false, set: env.streamTitle },
+      { key: 'ALERT_DURATION',     val: String(cfg.alertDuration||''), desc: 'วินาทีที่แสดง Alert',    secret: false, set: env.alertDuration },
+      { key: 'THEME',              val: cfg.theme || '',               desc: 'ชื่อ theme เช่น purple-galaxy', secret: false, set: env.theme },
+    ];
+    box.innerHTML = vars.map(v => {
+      const display = v.secret && v.val ? '•'.repeat(Math.min(v.val.length, 20)) : (v.val || '—');
+      const status  = v.set ? '✅' : '';
+      return `<div class="railway-var-row">
+        <span class="railway-var-key">${v.key}</span>
+        <span class="railway-var-val">${display}</span>
+        <span class="railway-var-desc"># ${v.desc}</span>
+        ${status ? `<span style="color:#10b981;font-size:11px">${status} ตั้งแล้ว</span>` : ''}
+      </div>`;
+    }).join('');
+  }
+
+  // ── Export / Import Config ─────────────────────────────────
+  function exportConfig() {
+    fetch('/api/config/full')
+      .then(r => r.json())
+      .then(data => {
+        const { _envFlags, ...cleanCfg } = data;
+        const blob = new Blob([JSON.stringify(cleanCfg, null, 2)], { type: 'application/json' });
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href     = url;
+        a.download = 'stream-donate-config.json';
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast('✅ Export สำเร็จ!');
+      });
+  }
+
+  function importConfig() {
+    const input = document.createElement('input');
+    input.type   = 'file';
+    input.accept = '.json,application/json';
+    input.onchange = async e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        const data = JSON.parse(text);
+        await fetch('/api/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        });
+        showToast('✅ Import สำเร็จ! โหลดการตั้งค่าใหม่...');
+        setTimeout(loadConfig, 600);
+      } catch (err) {
+        showToast('❌ ไฟล์ JSON ไม่ถูกต้อง: ' + err.message, true);
+      }
+    };
+    input.click();
   }
 
   const MODEL_DESC = {
