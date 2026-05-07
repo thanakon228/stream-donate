@@ -104,50 +104,67 @@ const EMOTION_CUES = {
   neutral:    '',
 };
 
+function deepMerge(base, saved) {
+  return {
+    ...base,
+    ...saved,
+    emotions:       { ...base.emotions,       ...(saved.emotions || {}) },
+    googleEmotions: { ...base.googleEmotions, ...(saved.googleEmotions || {}) },
+    bot: {
+      ...base.bot,
+      ...(saved.bot || {}),
+      messages: saved.bot?.messages ?? base.bot.messages,
+    },
+    slipVerify: { ...base.slipVerify, ...(saved.slipVerify || {}) },
+    paymentAccounts: {
+      ...base.paymentAccounts,
+      ...(saved.paymentAccounts || {}),
+      accounts: saved.paymentAccounts?.accounts ?? [],
+    },
+  };
+}
+
 function loadConfig() {
-  let cfg;
-  if (!fs.existsSync(CONFIG_FILE)) {
-    cfg = JSON.parse(JSON.stringify(DEFAULTS));
-    fs.writeFileSync(CONFIG_FILE, JSON.stringify(cfg, null, 2));
-  } else {
-    // Deep-merge: keep defaults for any missing nested keys
-    const saved = JSON.parse(fs.readFileSync(CONFIG_FILE));
-    cfg = {
-      ...DEFAULTS,
-      ...saved,
-      emotions:       { ...DEFAULTS.emotions,       ...(saved.emotions || {}) },
-      googleEmotions: { ...DEFAULTS.googleEmotions, ...(saved.googleEmotions || {}) },
-      bot: {
-        ...DEFAULTS.bot,
-        ...(saved.bot || {}),
-        messages: saved.bot?.messages ?? DEFAULTS.bot.messages,
-      },
-      slipVerify: { ...DEFAULTS.slipVerify, ...(saved.slipVerify || {}) },
-      paymentAccounts: {
-        ...DEFAULTS.paymentAccounts,
-        ...(saved.paymentAccounts || {}),
-        accounts: saved.paymentAccounts?.accounts ?? [],
-      },
-    };
+  const e = process.env;
+
+  // ── Priority 1: CONFIG env var (full JSON, set via Railway Variables) ──
+  // This is the recommended way to persist ALL settings on Railway.
+  // Export from Dashboard → "📋 Copy Raw Config" button.
+  let base = JSON.parse(JSON.stringify(DEFAULTS));
+  if (e.CONFIG) {
+    try {
+      const fromEnv = JSON.parse(e.CONFIG);
+      base = deepMerge(base, fromEnv);
+    } catch(err) {
+      console.error('⚠️  CONFIG env var is not valid JSON, ignoring:', err.message);
+    }
   }
 
-  // ── Environment variable overrides ──────────────────────────
-  // Set these in Railway Variables panel for persistent storage.
-  // They always take priority over config.json.
-  const e = process.env;
-  if (e.EASYSLIP_KEY)       cfg.easySlipKey   = e.EASYSLIP_KEY;
-  if (e.ELEVENLABS_API_KEY) cfg.elevenLabsKey = e.ELEVENLABS_API_KEY;
-  if (e.ELEVEN_VOICE_ID)    cfg.voiceId       = e.ELEVEN_VOICE_ID;
-  if (e.ELEVEN_MODEL_ID)    cfg.modelId       = e.ELEVEN_MODEL_ID;
-  if (e.GOOGLE_TTS_KEY)     cfg.googleTtsKey  = e.GOOGLE_TTS_KEY;
-  if (e.GOOGLE_VOICE)       cfg.googleVoice   = e.GOOGLE_VOICE;
-  if (e.GOOGLE_LANG)        cfg.googleLang    = e.GOOGLE_LANG;
-  if (e.TTS_PROVIDER)       cfg.ttsProvider   = e.TTS_PROVIDER;
-  if (e.MIN_DONATE)         cfg.minDonate     = Number(e.MIN_DONATE);
-  if (e.CURRENCY)           cfg.currency      = e.CURRENCY;
-  if (e.STREAM_TITLE)       cfg.streamTitle   = e.STREAM_TITLE;
-  if (e.ALERT_DURATION)     cfg.alertDuration = Number(e.ALERT_DURATION);
-  if (e.THEME)              cfg.theme         = e.THEME;
+  // ── Priority 2: config.json on disk (overrides CONFIG env var) ──
+  let cfg;
+  if (!fs.existsSync(CONFIG_FILE)) {
+    cfg = base;
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify(cfg, null, 2));
+  } else {
+    const saved = JSON.parse(fs.readFileSync(CONFIG_FILE));
+    cfg = deepMerge(base, saved);
+  }
+
+  // ── Priority 3: individual env vars (highest priority, override everything) ──
+  if (e.EASYSLIP_KEY)            cfg.easySlipKey        = e.EASYSLIP_KEY;
+  if (e.EASYSLIP_API_VERSION)    cfg.easySlipApiVersion = e.EASYSLIP_API_VERSION;
+  if (e.ELEVENLABS_API_KEY)      cfg.elevenLabsKey      = e.ELEVENLABS_API_KEY;
+  if (e.ELEVEN_VOICE_ID)         cfg.voiceId            = e.ELEVEN_VOICE_ID;
+  if (e.ELEVEN_MODEL_ID)         cfg.modelId            = e.ELEVEN_MODEL_ID;
+  if (e.GOOGLE_TTS_KEY)          cfg.googleTtsKey       = e.GOOGLE_TTS_KEY;
+  if (e.GOOGLE_VOICE)            cfg.googleVoice        = e.GOOGLE_VOICE;
+  if (e.GOOGLE_LANG)             cfg.googleLang         = e.GOOGLE_LANG;
+  if (e.TTS_PROVIDER)            cfg.ttsProvider        = e.TTS_PROVIDER;
+  if (e.MIN_DONATE)              cfg.minDonate          = Number(e.MIN_DONATE);
+  if (e.CURRENCY)                cfg.currency           = e.CURRENCY;
+  if (e.STREAM_TITLE)            cfg.streamTitle        = e.STREAM_TITLE;
+  if (e.ALERT_DURATION)          cfg.alertDuration      = Number(e.ALERT_DURATION);
+  if (e.THEME)                   cfg.theme              = e.THEME;
 
   return cfg;
 }
@@ -245,6 +262,16 @@ async function generateTTS(cfg, text, emotion) {
 }
 
 // ─── Routes ─────────────────────────────────────────────────────────────────
+
+// GET /api/config/export — returns full config as Railway Raw env var string
+// Usage: copy the value of CONFIG= and paste into Railway → Variables → Raw Editor
+app.get('/api/config/export', (req, res) => {
+  const cfg = loadConfig();
+  // Strip nothing — export full config including API keys (for Railway secure storage)
+  const json = JSON.stringify(cfg);
+  const raw  = `CONFIG=${json}`;
+  res.type('text/plain').send(raw);
+});
 
 app.get('/api/config', (req, res) => {
   const cfg = loadConfig();

@@ -905,17 +905,30 @@
         <button class="btn btn-outline" onclick="importConfig()">⬆️ Import การตั้งค่า (.json)</button>
       </div>
 
+      <!-- Railway Raw Config -->
       <div style="margin-top:20px;padding:16px;background:rgba(59,130,246,.07);border:1px solid rgba(59,130,246,.2);border-radius:12px">
-        <div style="font-size:13px;font-weight:700;color:#60a5fa;margin-bottom:8px">
-          🚀 Railway — ตั้งค่าถาวรด้วย Environment Variables
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div style="font-size:13px;font-weight:700;color:#60a5fa">🚀 Railway Raw Config — บันทึกการตั้งค่าทั้งหมดถาวร</div>
+          <button class="btn btn-primary" style="padding:6px 14px;font-size:12px" onclick="copyRailwayRaw()">📋 Copy Raw</button>
         </div>
         <p style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.8">
-          Railway จะ <strong style="color:var(--text)">ลบการตั้งค่าทุกครั้งที่ redeploy</strong><br>
-          วิธีแก้: ไปที่ <strong style="color:#60a5fa">Railway → Project → Variables</strong> แล้วเพิ่มตัวแปรด้านล่าง จะไม่หายถาวร
+          คลิก <strong style="color:var(--text)">Copy Raw</strong> → ไปที่ Railway → Project → <strong style="color:#60a5fa">Variables → Raw Editor</strong> → วางแทนที่ทั้งหมด<br>
+          การตั้งค่าทุกอย่าง (บัญชี, สลิป, bot, emotions ฯลฯ) จะ<strong style="color:#60a5fa"> ไม่หาย</strong>แม้ redeploy
         </p>
+        <textarea id="railway-raw-box" readonly
+          style="width:100%;height:120px;background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-family:monospace;font-size:11px;color:var(--text);resize:vertical;box-sizing:border-box;line-height:1.6"
+          placeholder="กำลังโหลด..."></textarea>
+        <p style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.6">
+          💡 ตัวแปร <code style="background:rgba(255,255,255,.08);padding:1px 6px;border-radius:4px">CONFIG</code> เก็บ config ทั้งหมดเป็น JSON · individual vars (ELEVENLABS_API_KEY ฯลฯ) จะ override CONFIG เสมอ
+        </p>
+      </div>
+
+      <!-- Individual env vars (legacy reference) -->
+      <div style="margin-top:16px;padding:14px;background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:10px">
+        <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:10px">🔑 Individual Env Vars (สำหรับ API Keys เท่านั้น)</div>
         <div id="env-vars-list" style="font-family:monospace;font-size:12px;background:var(--card2);border-radius:8px;padding:12px 16px;line-height:2.2"></div>
         <p style="font-size:11px;color:var(--muted);margin-top:10px;line-height:1.7">
-          ⚡ ตัวแปรที่ตั้งใน Railway จะ <strong style="color:var(--text)">override</strong> ค่าใน Dashboard เสมอ<br>
+          ⚡ ตัวแปรที่ตั้งใน Railway จะ <strong style="color:var(--text)">override</strong> ค่าใน CONFIG เสมอ<br>
           ✅ ถ้าเห็นป้าย <span class="env-badge" style="display:inline-flex;position:relative">🔒 จาก Env Var</span> แปลว่าค่านี้ถูกตั้งถาวรแล้ว
         </p>
       </div>
@@ -1407,6 +1420,7 @@
 
     // ── Railway vars guide ──────────────────────────────────
     renderEnvVarsList(cfg, env);
+    loadRailwayRawBox();
   }
 
   function setEnvBadge(badgeId, fgId, isEnv) {
@@ -1453,6 +1467,34 @@
         ${status ? `<span style="color:#10b981;font-size:11px">${status} ตั้งแล้ว</span>` : ''}
       </div>`;
     }).join('');
+  }
+
+  // ── Railway Raw Config ─────────────────────────────────────
+  async function loadRailwayRawBox() {
+    const box = document.getElementById('railway-raw-box');
+    if (!box) return;
+    try {
+      const text = await fetch('/api/config/export').then(r => r.text());
+      box.value = text;
+    } catch(e) {
+      box.value = '# โหลดไม่ได้: ' + e.message;
+    }
+  }
+
+  async function copyRailwayRaw() {
+    const box = document.getElementById('railway-raw-box');
+    if (!box || !box.value) {
+      await loadRailwayRawBox();
+    }
+    try {
+      await navigator.clipboard.writeText(box.value);
+      showToast('✅ คัดลอก Raw Config แล้ว! ไปวางใน Railway → Variables → Raw Editor');
+    } catch(e) {
+      // fallback
+      box.select();
+      document.execCommand('copy');
+      showToast('✅ คัดลอกแล้ว!');
+    }
   }
 
   // ── Export / Import Config ─────────────────────────────────
