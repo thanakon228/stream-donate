@@ -85,6 +85,12 @@ const DEFAULTS = {
     required:        false,  // block submission if slip not verified
     minAmountForTts: 20,     // verified amount must be >= this to show TTS picker
   },
+  // ── Payment Accounts ──
+  paymentAccounts: {
+    showOnGate:    true,   // show payment info on the slip gate
+    showOnOverlay: true,   // show payment info in OBS overlay alert
+    accounts: [],          // [{ id, type, bankName, accountNumber, accountName, phone, display }]
+  },
 };
 
 
@@ -116,6 +122,11 @@ function loadConfig() {
         messages: saved.bot?.messages ?? DEFAULTS.bot.messages,
       },
       slipVerify: { ...DEFAULTS.slipVerify, ...(saved.slipVerify || {}) },
+      paymentAccounts: {
+        ...DEFAULTS.paymentAccounts,
+        ...(saved.paymentAccounts || {}),
+        accounts: saved.paymentAccounts?.accounts ?? [],
+      },
     };
   }
 
@@ -265,6 +276,14 @@ app.post('/api/config', (req, res) => {
   // Deep-merge slipVerify
   if (req.body.slipVerify !== undefined) {
     updated.slipVerify = { ...(current.slipVerify || {}), ...req.body.slipVerify };
+  }
+  // Deep-merge paymentAccounts
+  if (req.body.paymentAccounts !== undefined) {
+    updated.paymentAccounts = {
+      ...(current.paymentAccounts || {}),
+      ...req.body.paymentAccounts,
+      accounts: req.body.paymentAccounts.accounts ?? current.paymentAccounts?.accounts ?? [],
+    };
   }
   saveConfig(updated);
   res.json({ ok: true });

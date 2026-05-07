@@ -269,11 +269,57 @@
   .min-note { text-align:center; font-size:12px; color:var(--muted); margin-top:8px; }
   footer { text-align:center; color:var(--muted); font-size:12px; padding:24px 0; }
 
-  /* ── Slip Verification ───────────────────────────────────── */
+  /* ── Slip Gate (full-page first-screen) ───────────────────── */
+  .slip-gate {
+    position: fixed; inset: 0; z-index: 9000;
+    background: var(--bg); overflow-y: auto;
+    display: flex; flex-direction: column; align-items: center; padding: 24px 16px 40px;
+    transition: transform .7s cubic-bezier(.4,0,.2,1), opacity .5s;
+  }
+  .slip-gate.dismissed { transform: translateY(-100%); opacity: 0; pointer-events: none; }
+
+  .gate-inner { width: 100%; max-width: 520px; }
+
+  .gate-header { text-align: center; padding: 20px 0 28px; }
+  .gate-logo {
+    width: 68px; height: 68px; font-size: 30px;
+    background: var(--logo-grad); border-radius: 22px;
+    display: inline-flex; align-items: center; justify-content: center;
+    box-shadow: 0 8px 28px var(--btn-shadow); margin-bottom: 14px;
+  }
+  .gate-title { font-size: 24px; font-weight: 700; }
+  .gate-subtitle { font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+  /* Payment channels */
+  .pay-channels { margin-bottom: 20px; }
+  .pay-channel-label {
+    font-size: 11px; font-weight: 600; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;
+  }
+  .pay-account {
+    background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+    padding: 14px 18px; margin-bottom: 10px;
+    display: flex; align-items: center; gap: 14px;
+  }
+  .pay-account-icon {
+    width: 44px; height: 44px; border-radius: 12px; font-size: 20px;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    background: color-mix(in srgb, var(--primary) 15%, transparent);
+    border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
+  }
+  .pay-account-info { flex: 1; min-width: 0; }
+  .pay-account-type { font-size: 11px; color: var(--muted); margin-bottom: 2px; }
+  .pay-account-name { font-size: 15px; font-weight: 700; color: var(--text); }
+  .pay-account-number {
+    font-size: 18px; font-weight: 800; color: var(--primary-light);
+    letter-spacing: 1.5px; margin-top: 2px; font-family: monospace;
+  }
+
+  /* Slip drop */
   .slip-drop {
     border: 2px dashed var(--border); border-radius: 16px;
     padding: 28px 20px; text-align: center; cursor: pointer;
-    transition: all .25s; position: relative; overflow: hidden;
+    transition: all .25s;
   }
   .slip-drop:hover, .slip-drop.dragover {
     border-color: var(--primary-light);
@@ -282,34 +328,36 @@
   .slip-drop .slip-icon { font-size: 36px; margin-bottom: 8px; display: block; }
   .slip-drop .slip-hint { font-size: 13px; color: var(--muted); line-height: 1.5; }
   .slip-drop .slip-hint small { font-size: 11px; opacity: .7; }
+  .slip-drop.has-file .slip-icon,
+  .slip-drop.has-file .slip-hint { display: none; }
   .slip-drop.has-file { padding: 12px; }
 
   .slip-preview {
     width: 100%; max-height: 220px; object-fit: contain;
-    border-radius: 12px; margin-top: 10px; display: none;
-    border: 1px solid var(--border);
+    border-radius: 12px; display: none; border: 1px solid var(--border);
   }
   .slip-change-btn {
-    display: none; margin-top: 8px; background: none;
+    margin-top: 8px; background: none;
     border: 1px solid var(--border); border-radius: 8px;
     color: var(--muted); cursor: pointer; font-family: 'Kanit',sans-serif;
-    font-size: 12px; padding: 5px 14px; transition: all .2s;
+    font-size: 12px; padding: 5px 14px; transition: all .2s; display: none;
   }
   .slip-change-btn:hover { border-color: var(--primary-light); color: var(--text); }
 
   .slip-verify-btn {
-    width: 100%; margin-top: 14px; padding: 12px;
-    background: var(--card2); border: 2px solid var(--primary);
-    border-radius: 12px; color: var(--primary-light);
-    font-family: 'Kanit',sans-serif; font-size: 15px; font-weight: 600;
+    width: 100%; margin-top: 14px; padding: 14px;
+    background: var(--btn-grad); border: none;
+    border-radius: 14px; color: white;
+    font-family: 'Kanit',sans-serif; font-size: 16px; font-weight: 600;
     cursor: pointer; transition: all .2s; display: none;
+    box-shadow: 0 4px 20px var(--btn-shadow);
   }
-  .slip-verify-btn:hover:not(:disabled) { background: var(--selected-bg); transform: translateY(-1px); }
+  .slip-verify-btn:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.1); }
   .slip-verify-btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
 
   .slip-status {
     margin-top: 12px; padding: 12px 14px; border-radius: 12px;
-    font-size: 13px; display: none; line-height: 1.6;
+    font-size: 13px; display: none; line-height: 1.7;
   }
   .slip-status.checking {
     background: color-mix(in srgb, var(--primary) 10%, transparent);
@@ -326,23 +374,101 @@
     border: 1px solid color-mix(in srgb, var(--error) 30%, transparent);
     color: var(--error);
   }
-  .slip-row { display: flex; justify-content: space-between; font-size: 12px; margin-top: 4px; }
+  .slip-row { display: flex; justify-content: space-between; font-size: 12px; margin-top: 3px; }
   .slip-row .lbl { color: var(--muted); }
   .slip-row .val { font-weight: 600; color: var(--text); }
   .slip-amount-big {
-    font-size: 22px; font-weight: 700; color: var(--primary-light);
-    text-align: center; margin: 6px 0 2px;
+    font-size: 26px; font-weight: 800; color: var(--primary-light);
+    text-align: center; margin: 8px 0 4px;
   }
-  .slip-required-badge {
-    display: inline-block; font-size: 10px; font-weight: 600;
-    background: color-mix(in srgb, var(--accent) 20%, transparent);
-    color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
-    border-radius: 6px; padding: 2px 8px; margin-left: 8px; vertical-align: middle;
+  .gate-continue-btn {
+    width: 100%; margin-top: 16px; padding: 16px;
+    background: var(--btn-grad); border: none; border-radius: 14px;
+    color: white; font-family: 'Kanit',sans-serif; font-size: 17px; font-weight: 700;
+    cursor: pointer; box-shadow: 0 4px 20px var(--btn-shadow); transition: all .2s;
+    display: none;
   }
+  .gate-continue-btn:hover { transform: translateY(-2px); filter: brightness(1.1); }
+  @keyframes pulseGlow {
+    0%,100% { box-shadow: 0 4px 20px var(--btn-shadow); }
+    50%      { box-shadow: 0 4px 40px var(--btn-shadow); }
+  }
+  .gate-continue-btn.show { display: block; animation: pulseGlow 2s infinite; }
+
+  /* Main form reveal */
+  #mainForm {
+    opacity: 0; pointer-events: none;
+    transition: opacity .5s .15s;
+  }
+  #mainForm.revealed { opacity: 1; pointer-events: auto; }
+
+  /* Lock badge on amount field */
+  .amount-lock-badge {
+    display: none; font-size: 11px; color: var(--success);
+    padding: 3px 8px; background: color-mix(in srgb, var(--success) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--success) 30%, transparent);
+    border-radius: 6px; margin-left: 8px;
+  }
+  .amount-lock-badge.show { display: inline; }
 </style>
 </head>
 <body>
-<div class="container">
+
+<!-- ════════════════════════════════════════════════════════
+     SLIP GATE — covers page on load when easySlip enabled
+═════════════════════════════════════════════════════════ -->
+<div class="slip-gate" id="slipGate" style="display:none">
+  <div class="gate-inner">
+
+    <div class="gate-header">
+      <div class="gate-logo">🏦</div>
+      <div class="gate-title" id="gateTitle">ยืนยันการชำระเงิน</div>
+      <div class="gate-subtitle">โอนเงินมาที่บัญชีด้านล่าง แล้วแนบสลิปเพื่อดำเนินการต่อ</div>
+    </div>
+
+    <!-- Payment accounts section -->
+    <div id="gateAccounts" style="display:none">
+      <div class="pay-channel-label">💳 ช่องทางการโอนเงิน</div>
+      <div id="gateAccountsList"></div>
+    </div>
+
+    <!-- Slip upload section -->
+    <div class="card" style="margin-bottom:0">
+      <div class="section-title">📎 แนบสลิปการโอน</div>
+
+      <div class="slip-drop" id="slipDrop"
+           onclick="document.getElementById('slipInput').click()"
+           ondragover="slipDragOver(event)"
+           ondragleave="slipDragLeave(event)"
+           ondrop="slipDrop(event)">
+        <span class="slip-icon">🧾</span>
+        <div class="slip-hint">
+          คลิกหรือลากสลิปมาวางที่นี่<br>
+          <small>รองรับ JPG · PNG · WEBP · ขนาดไม่เกิน 10 MB</small>
+        </div>
+        <img id="slipPreview" class="slip-preview" alt="slip preview">
+      </div>
+      <button class="slip-change-btn" id="slipChangeBtn"
+              onclick="document.getElementById('slipInput').click()">🔄 เปลี่ยนสลิป</button>
+      <input type="file" id="slipInput" accept="image/*" style="display:none" onchange="onSlipFile(event)">
+
+      <button class="slip-verify-btn" id="slipVerifyBtn" onclick="verifySlip()">
+        🔍 ตรวจสอบสลิปกับระบบธนาคาร
+      </button>
+      <div class="slip-status" id="slipStatus"></div>
+    </div>
+
+    <button class="gate-continue-btn" id="gateContinueBtn" onclick="dismissGate()">
+      ✅ ยืนยันแล้ว — กรอกข้อมูลการบริจาค →
+    </button>
+
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     MAIN DONATE FORM
+═════════════════════════════════════════════════════════ -->
+<div class="container" id="mainForm">
   <header>
     <div class="logo">🎁</div>
     <h1 id="streamTitle">Stream <span>Donate</span></h1>
@@ -357,7 +483,10 @@
       <input type="text" id="donorName" placeholder="ใส่ชื่อของคุณ" maxlength="50">
     </div>
     <div class="input-group">
-      <label>จำนวนเงิน *</label>
+      <label>
+        จำนวนเงิน *
+        <span class="amount-lock-badge" id="amountLockBadge">🔒 จากสลิป</span>
+      </label>
       <div class="amount-row">
         <input type="number" id="donateAmount" placeholder="0" min="1" oninput="onAmountInput()">
         <div class="currency-badge" id="currencyBadge">THB</div>
@@ -371,33 +500,6 @@
         <button class="quick-btn" onclick="setAmount(1000)">฿1,000</button>
       </div>
     </div>
-  </div>
-
-  <!-- Slip verification card (shown when easySlip is enabled) -->
-  <div class="card card-appear" id="slip-card" style="display:none">
-    <div class="section-title">
-      🧾 แนบสลิปการโอนเงิน
-      <span class="slip-required-badge" id="slip-required-badge" style="display:none">จำเป็น</span>
-    </div>
-    <div class="slip-drop" id="slipDrop"
-         onclick="document.getElementById('slipInput').click()"
-         ondragover="slipDragOver(event)"
-         ondragleave="slipDragLeave(event)"
-         ondrop="slipDrop(event)">
-      <span class="slip-icon">🏦</span>
-      <div class="slip-hint">
-        คลิกหรือลากสลิปมาวางที่นี่<br>
-        <small>รองรับ JPG · PNG · WEBP · ไม่เกิน 10 MB</small>
-      </div>
-      <img id="slipPreview" class="slip-preview" alt="slip preview">
-    </div>
-    <button class="slip-change-btn" id="slipChangeBtn"
-            onclick="document.getElementById('slipInput').click()">🔄 เปลี่ยนสลิป</button>
-    <input type="file" id="slipInput" accept="image/*" style="display:none" onchange="onSlipFile(event)">
-    <button class="slip-verify-btn" id="slipVerifyBtn" onclick="verifySlip()">
-      🔍 ตรวจสอบสลิปกับระบบธนาคาร
-    </button>
-    <div class="slip-status" id="slipStatus"></div>
   </div>
 
   <!-- Message & emotion -->
@@ -467,20 +569,27 @@
 <script>
   // ── State ────────────────────────────────────────────────────
   let selectedEmotion     = 'neutral';
-  let selectedTtsProvider = null;   // null = use server default
+  let selectedTtsProvider = null;
   let cfgMinDonate        = 20;
   let cfgCurrency         = 'THB';
   let bothProvidersAvail  = false;
   let defaultProvider     = 'elevenlabs';
+  let easySlipEnabled     = false;
+  let slipRequired        = false;
+  let minAmountForTts     = 20;
 
   // Slip state
   let slipFile            = null;
   let slipVerified        = false;
   let slipVerifiedAmount  = 0;
   let slipTransRef        = null;
-  let easySlipEnabled     = false;
-  let slipRequired        = false;
-  let minAmountForTts     = 20;
+
+  // ── Bank/account type labels ─────────────────────────────────
+  const ACCOUNT_TYPE = {
+    bank:       { label:'ธนาคาร',          icon:'🏦' },
+    promptpay:  { label:'พร้อมเพย์',        icon:'📲' },
+    truemoney:  { label:'TrueMoney Wallet', icon:'💚' },
+  };
 
   // ── Config ───────────────────────────────────────────────────
   async function loadConfig() {
@@ -489,7 +598,8 @@
       const cfg = await r.json();
 
       document.body.className = 'theme-' + (cfg.theme || 'purple-galaxy');
-      document.getElementById('streamTitle').innerHTML = cfg.streamTitle
+      const titleEl = document.getElementById('streamTitle');
+      titleEl.innerHTML = cfg.streamTitle
         ? cfg.streamTitle.replace(/(\S+)$/, '<span>$1</span>')
         : 'Stream <span>Donate</span>';
 
@@ -501,22 +611,32 @@
 
       defaultProvider    = cfg.ttsProvider || 'elevenlabs';
       bothProvidersAvail = !!(cfg.elevenLabsAvailable && cfg.googleTtsAvailable);
-
-      // Pre-select default TTS
       if (bothProvidersAvail) {
         const btn = document.querySelector(`[data-provider="${defaultProvider}"]`);
         if (btn) selectTts(btn, true);
-      } else {
-        selectedTtsProvider = null;
-      }
+      } else { selectedTtsProvider = null; }
 
-      // Slip verification config
+      // Slip/gate config
       easySlipEnabled = !!(cfg.easySlipAvailable && cfg.slipVerify?.enabled);
       slipRequired    = !!(cfg.slipVerify?.required);
       minAmountForTts = cfg.slipVerify?.minAmountForTts ?? 20;
 
-      document.getElementById('slip-card').style.display = easySlipEnabled ? 'block' : 'none';
-      document.getElementById('slip-required-badge').style.display = slipRequired ? 'inline-block' : 'none';
+      const gate     = document.getElementById('slipGate');
+      const mainForm = document.getElementById('mainForm');
+
+      if (easySlipEnabled) {
+        // Show gate
+        gate.style.display = 'flex';
+        // Render payment accounts in gate
+        renderGateAccounts(cfg.paymentAccounts);
+        // Copy stream title to gate
+        document.getElementById('gateTitle').textContent =
+          cfg.streamTitle ? `${cfg.streamTitle} — ยืนยันการชำระ` : 'ยืนยันการชำระเงิน';
+      } else {
+        // No gate — reveal form immediately
+        gate.style.display = 'none';
+        mainForm.classList.add('revealed');
+      }
 
       const providerName = defaultProvider === 'google' ? 'Google TTS' : 'ElevenLabs';
       document.getElementById('footerText').textContent =
@@ -526,17 +646,53 @@
     } catch(e) {}
   }
 
+  // ── Render payment accounts in gate ─────────────────────────
+  function renderGateAccounts(paymentAccounts) {
+    const accounts = (paymentAccounts?.accounts || []).filter(a => a.display !== false);
+    const wrap     = document.getElementById('gateAccounts');
+    const list     = document.getElementById('gateAccountsList');
+    if (!accounts.length || !paymentAccounts?.showOnGate) { wrap.style.display = 'none'; return; }
+    wrap.style.display = 'block';
+    list.innerHTML = accounts.map(a => {
+      const t = ACCOUNT_TYPE[a.type] || ACCOUNT_TYPE.bank;
+      const number = a.type === 'bank'
+        ? (a.accountNumber || '')
+        : (a.phone || a.accountNumber || '');
+      const bankLine = a.bankName ? `<div class="pay-account-type">${t.label} · ${a.bankName}</div>` : `<div class="pay-account-type">${t.label}</div>`;
+      return `<div class="pay-account">
+        <div class="pay-account-icon">${t.icon}</div>
+        <div class="pay-account-info">
+          ${bankLine}
+          <div class="pay-account-name">${a.accountName || ''}</div>
+          <div class="pay-account-number">${number}</div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // ── Dismiss gate, reveal form ────────────────────────────────
+  function dismissGate() {
+    document.getElementById('slipGate').classList.add('dismissed');
+    document.getElementById('mainForm').classList.add('revealed');
+    // Pre-fill amount if verified
+    if (slipVerified && slipVerifiedAmount > 0) {
+      document.getElementById('donateAmount').value = slipVerifiedAmount;
+      document.getElementById('donateAmount').readOnly = true;
+      document.getElementById('amountLockBadge').classList.add('show');
+      syncQuickBtns(slipVerifiedAmount);
+      updateTtsPicker();
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
   // ── TTS picker visibility ────────────────────────────────────
   function updateTtsPicker() {
     const pickerCard = document.getElementById('tts-picker-card');
     if (!bothProvidersAvail) { pickerCard.style.display = 'none'; return; }
-
     let show = false;
     if (easySlipEnabled) {
-      // Slip mode: only show when slip verified AND amount >= threshold
       show = slipVerified && slipVerifiedAmount >= minAmountForTts;
     } else {
-      // No slip: check typed amount
       const amt = Number(document.getElementById('donateAmount').value);
       show = amt >= minAmountForTts;
     }
@@ -545,18 +701,16 @@
 
   // ── Amount helpers ───────────────────────────────────────────
   function setAmount(v) {
-    if (slipVerified) return; // locked after slip verification
+    if (slipVerified) return;
     document.getElementById('donateAmount').value = v;
     syncQuickBtns(v);
     onAmountInput();
   }
-
   function onAmountInput() {
     const amt = Number(document.getElementById('donateAmount').value);
     syncQuickBtns(amt);
     updateTtsPicker();
   }
-
   function syncQuickBtns(v) {
     document.querySelectorAll('.quick-btn').forEach(b => {
       b.classList.toggle('active', parseInt(b.textContent.replace(/[฿,]/g,'')) === v);
@@ -569,23 +723,20 @@
     el.classList.add('selected');
     selectedEmotion = el.dataset.emotion;
   }
-
   function selectTts(el, silent = false) {
     document.querySelectorAll('.tts-btn').forEach(b => b.classList.remove('selected'));
     el.classList.add('selected');
     selectedTtsProvider = el.dataset.provider;
-    const note = document.getElementById('tts-note');
-    note.textContent = selectedTtsProvider === 'elevenlabs'
+    document.getElementById('tts-note').textContent = selectedTtsProvider === 'elevenlabs'
       ? '🎧 ElevenLabs — คุณภาพเสียงสูงสุด อ่านออกอารมณ์ได้ชัด'
       : '🔵 Google TTS — เร็ว ประหยัด รองรับหลายภาษา';
   }
-
   function updateCharCount() {
     document.getElementById('charCount').textContent =
       document.getElementById('donateMessage').value.length;
   }
 
-  // ── Slip upload ──────────────────────────────────────────────
+  // ── Slip gate interactions ───────────────────────────────────
   function slipDragOver(e)  { e.preventDefault(); document.getElementById('slipDrop').classList.add('dragover'); }
   function slipDragLeave(e) { document.getElementById('slipDrop').classList.remove('dragover'); }
   function slipDrop(e) {
@@ -597,36 +748,22 @@
   function onSlipFile(e) {
     const file = e.target.files?.[0];
     if (file) applySlipFile(file);
-    e.target.value = ''; // allow re-select same file
+    e.target.value = '';
   }
 
   function applySlipFile(file) {
     if (!file.type.startsWith('image/')) return showToast('⚠️ กรุณาเลือกไฟล์รูปภาพเท่านั้น', true);
-    slipFile           = file;
-    slipVerified       = false;
-    slipVerifiedAmount = 0;
-    slipTransRef       = null;
+    slipFile = file; slipVerified = false; slipVerifiedAmount = 0; slipTransRef = null;
 
-    // Preview
     const preview = document.getElementById('slipPreview');
     preview.src = URL.createObjectURL(file);
     preview.style.display = 'block';
 
-    // UI
-    const drop = document.getElementById('slipDrop');
-    drop.classList.add('has-file');
-    drop.querySelector('.slip-icon').style.display = 'none';
-    drop.querySelector('.slip-hint').style.display = 'none';
+    document.getElementById('slipDrop').classList.add('has-file');
     document.getElementById('slipChangeBtn').style.display = 'inline-block';
     document.getElementById('slipVerifyBtn').style.display = 'block';
-
-    const status = document.getElementById('slipStatus');
-    status.style.display = 'none';
-
-    // Reset amount & TTS
-    document.getElementById('donateAmount').value = '';
-    syncQuickBtns(0);
-    updateTtsPicker();
+    document.getElementById('slipStatus').style.display    = 'none';
+    document.getElementById('gateContinueBtn').classList.remove('show');
   }
 
   async function verifySlip() {
@@ -634,59 +771,37 @@
     const btn    = document.getElementById('slipVerifyBtn');
     const status = document.getElementById('slipStatus');
 
-    btn.disabled    = true;
-    btn.textContent = '⏳ กำลังตรวจสอบ...';
-    status.className    = 'slip-status checking';
-    status.innerHTML    = '🔍 กำลังส่งสลิปไปยืนยันกับระบบธนาคาร...';
+    btn.disabled = true; btn.textContent = '⏳ กำลังตรวจสอบ...';
+    status.className = 'slip-status checking';
+    status.innerHTML = '🔍 กำลังส่งสลิปไปยืนยันกับระบบธนาคาร...';
     status.style.display = 'block';
 
     try {
       const fd = new FormData();
       fd.append('slip', slipFile);
-
       const res  = await fetch('/api/verify-slip', { method: 'POST', body: fd });
       const data = await res.json();
-
       if (!res.ok || !data.ok) throw new Error(data.error || 'ไม่สามารถยืนยันสลิปได้');
 
-      slipVerified       = true;
-      slipVerifiedAmount = data.amount;
-      slipTransRef       = data.transRef;
-
-      // Auto-fill & lock amount
-      document.getElementById('donateAmount').value = data.amount;
-      syncQuickBtns(data.amount);
-      document.getElementById('donateAmount').readOnly = true;
+      slipVerified = true; slipVerifiedAmount = data.amount; slipTransRef = data.transRef;
 
       const dateStr = data.date ? new Date(data.date).toLocaleString('th-TH') : '-';
       status.className = 'slip-status ok';
       status.innerHTML = `
         <div class="slip-amount-big">💰 ${Number(data.amount).toLocaleString('th-TH')} ${cfgCurrency}</div>
-        <div class="slip-row"><span class="lbl">ผู้โอน</span><span class="val">${data.senderName} ${data.senderBank ? '('+data.senderBank+')' : ''}</span></div>
-        <div class="slip-row"><span class="lbl">ผู้รับ</span><span class="val">${data.receiverName} ${data.receiverBank ? '('+data.receiverBank+')' : ''}</span></div>
+        <div class="slip-row"><span class="lbl">ผู้โอน</span><span class="val">${data.senderName}${data.senderBank?' ('+data.senderBank+')':''}</span></div>
+        <div class="slip-row"><span class="lbl">ผู้รับ</span><span class="val">${data.receiverName}${data.receiverBank?' ('+data.receiverBank+')':''}</span></div>
         <div class="slip-row"><span class="lbl">เวลา</span><span class="val">${dateStr}</span></div>
-        <div class="slip-row"><span class="lbl">Ref</span><span class="val" style="font-size:11px;word-break:break-all">${data.transRef || '-'}</span></div>`;
+        <div class="slip-row"><span class="lbl">Ref</span><span class="val" style="font-size:11px;word-break:break-all">${data.transRef||'-'}</span></div>`;
 
-      btn.textContent = '✅ ยืนยันสลิปแล้ว';
-
-      // Show TTS picker if amount qualifies
-      updateTtsPicker();
-
-      if (data.amount < minAmountForTts) {
-        showToast(`ℹ️ ยอด ${data.amount} ${cfgCurrency} — ไม่เข้าเงื่อนไขเลือกเสียง TTS`, false);
-      }
+      btn.textContent = '✅ ยืนยันสลิปสำเร็จ';
+      document.getElementById('gateContinueBtn').classList.add('show');
     } catch(e) {
-      slipVerified       = false;
-      slipVerifiedAmount = 0;
-      slipTransRef       = null;
-
-      status.className     = 'slip-status fail';
-      status.innerHTML     = '❌ ' + (e.message || 'เกิดข้อผิดพลาด');
-      status.style.display = 'block';
-
-      btn.disabled    = false;
+      slipVerified = false; slipVerifiedAmount = 0; slipTransRef = null;
+      status.className = 'slip-status fail';
+      status.innerHTML = '❌ ' + (e.message || 'เกิดข้อผิดพลาด');
+      btn.disabled = false;
       btn.textContent = '🔍 ลองตรวจสอบอีกครั้ง';
-      updateTtsPicker();
     }
   }
 
@@ -708,8 +823,6 @@
 
     if (!name)                          return showToast('⚠️ กรุณาใส่ชื่อของคุณ', true);
     if (!amount || Number(amount) <= 0) return showToast('⚠️ กรุณาใส่จำนวนเงิน', true);
-    if (easySlipEnabled && slipRequired && !slipVerified)
-      return showToast('⚠️ กรุณาแนบและยืนยันสลิปก่อน', true);
 
     btn.disabled = true; btn.classList.add('loading');
     try {
@@ -726,33 +839,35 @@
 
       showToast('🎉 ขอบคุณสำหรับการบริจาค!');
 
-      // Reset form
-      document.getElementById('donorName').value   = '';
+      // Reset form fields
+      document.getElementById('donorName').value = '';
       document.getElementById('donateAmount').value = '';
       document.getElementById('donateAmount').readOnly = false;
+      document.getElementById('amountLockBadge').classList.remove('show');
       document.getElementById('donateMessage').value = '';
       updateCharCount(); syncQuickBtns(0);
       selectEmotion(document.querySelector('[data-emotion="neutral"]'));
-
-      // Reset slip state
-      slipFile = null; slipVerified = false; slipVerifiedAmount = 0; slipTransRef = null;
-      if (easySlipEnabled) {
-        document.getElementById('slipPreview').style.display  = 'none';
-        document.getElementById('slipChangeBtn').style.display = 'none';
-        document.getElementById('slipVerifyBtn').style.display = 'none';
-        document.getElementById('slipStatus').style.display   = 'none';
-        const drop = document.getElementById('slipDrop');
-        drop.classList.remove('has-file');
-        drop.querySelector('.slip-icon').style.display = 'block';
-        drop.querySelector('.slip-hint').style.display = 'block';
-      }
-
-      // Reset TTS to default
       if (bothProvidersAvail) {
         const defaultBtn = document.querySelector(`[data-provider="${defaultProvider}"]`);
         if (defaultBtn) selectTts(defaultBtn, true);
       }
       updateTtsPicker();
+
+      // If gate mode — re-show gate for next donation
+      if (easySlipEnabled) {
+        slipFile = null; slipVerified = false; slipVerifiedAmount = 0; slipTransRef = null;
+        document.getElementById('slipPreview').style.display   = 'none';
+        document.getElementById('slipChangeBtn').style.display = 'none';
+        document.getElementById('slipVerifyBtn').style.display = 'none';
+        document.getElementById('slipStatus').style.display    = 'none';
+        document.getElementById('gateContinueBtn').classList.remove('show');
+        document.getElementById('slipDrop').classList.remove('has-file');
+        // Re-show gate
+        const gate = document.getElementById('slipGate');
+        gate.classList.remove('dismissed');
+        gate.style.display = 'flex';
+        document.getElementById('mainForm').classList.remove('revealed');
+      }
     } catch(e) {
       showToast('❌ ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์', true);
     } finally {

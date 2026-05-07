@@ -548,6 +548,35 @@
   .railway-var-desc {
     color: var(--muted); font-size: 11px; font-family: 'Kanit', sans-serif;
   }
+
+  /* account list item */
+  .account-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 14px; background: var(--bg);
+    border: 1px solid var(--border); border-radius: 12px; margin-bottom: 8px;
+  }
+  .account-item-icon {
+    width: 40px; height: 40px; border-radius: 10px; font-size: 18px;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    background: rgba(124,58,237,.12); border: 1px solid rgba(124,58,237,.25);
+  }
+  .account-item-body { flex: 1; min-width: 0; }
+  .account-item-type { font-size: 11px; color: var(--muted); }
+  .account-item-name { font-size: 14px; font-weight: 600; }
+  .account-item-num  { font-size: 13px; color: var(--primary-light); font-family: monospace; }
+  .account-item-actions { display: flex; gap: 6px; }
+  .acc-toggle-btn {
+    background: none; border: 1px solid var(--border); border-radius: 6px;
+    color: var(--muted); cursor: pointer; font-size: 12px; padding: 4px 10px;
+    transition: all .2s;
+  }
+  .acc-toggle-btn.active { border-color: var(--success); color: var(--success); }
+  .acc-del-btn {
+    background: none; border: 1px solid var(--border); border-radius: 6px;
+    color: var(--error); cursor: pointer; font-size: 12px; padding: 4px 8px;
+    transition: all .2s;
+  }
+  .acc-del-btn:hover { background: rgba(239,68,68,.1); }
 </style>
 </head>
 <body>
@@ -579,6 +608,9 @@
   </div>
   <div class="nav-item" onclick="showPage('bot')">
     <span class="nav-icon">🤖</span> Bot บริจาค
+  </div>
+  <div class="nav-item" onclick="showPage('accounts')">
+    <span class="nav-icon">💳</span> บัญชีรับเงิน
   </div>
 
   <div class="sidebar-bottom">
@@ -1106,6 +1138,76 @@
     </div>
   </div>
 
+  <!-- Payment Accounts -->
+  <div class="page" id="page-accounts">
+    <div class="page-title">💳 บัญชีรับเงิน</div>
+
+    <!-- Display settings -->
+    <div class="setting-card full">
+      <h3>⚙️ การแสดงผล</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:4px">
+        <div class="form-group" style="margin-bottom:0">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+            <input type="checkbox" id="acc-showOnGate" style="width:auto;accent-color:var(--primary)" checked>
+            แสดงในหน้ายืนยันสลิป
+          </label>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">แสดงช่องทางโอนเงินก่อนเข้าแบบฟอร์ม</div>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+            <input type="checkbox" id="acc-showOnOverlay" style="width:auto;accent-color:var(--primary)">
+            แสดงในแจ้งเตือน OBS
+          </label>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">แสดงบัญชีในแถบล่างของ Alert</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Add account form -->
+    <div class="setting-card full">
+      <h3>➕ เพิ่มบัญชีรับเงิน</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px">
+        <div class="form-group" style="margin-bottom:0">
+          <label>ประเภท</label>
+          <select id="acc-type" onchange="onAccTypeChange()">
+            <option value="bank">🏦 ธนาคาร</option>
+            <option value="promptpay">📲 พร้อมเพย์</option>
+            <option value="truemoney">💚 TrueMoney Wallet</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0" id="fg-bankName">
+          <label>ชื่อธนาคาร</label>
+          <input type="text" id="acc-bankName" placeholder="เช่น กสิกรไทย, SCB">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
+        <div class="form-group" style="margin-bottom:0">
+          <label id="acc-number-label">เลขบัญชี / เบอร์โทร</label>
+          <input type="text" id="acc-number" placeholder="000-0-00000-0">
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label>ชื่อบัญชี / ชื่อผู้รับ</label>
+          <input type="text" id="acc-name" placeholder="ชื่อ นามสกุล">
+        </div>
+      </div>
+      <div class="btn-row" style="margin-top:14px">
+        <button class="btn btn-primary" onclick="addAccount()">➕ เพิ่มบัญชี</button>
+      </div>
+    </div>
+
+    <!-- Account list -->
+    <div class="setting-card full">
+      <h3>📋 บัญชีที่ตั้งไว้</h3>
+      <div id="accountList" style="margin-top:8px">
+        <p style="font-size:13px;color:var(--muted)">ยังไม่มีบัญชี — กดเพิ่มด้านบน</p>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="saveAccounts()">💾 บันทึกบัญชี</button>
+    </div>
+  </div>
+
 </div>
 
 <div class="toast" id="toast"></div>
@@ -1202,6 +1304,7 @@
       clearInterval(botStatusInterval);
       botStatusInterval = null;
     }
+    if (id === 'accounts') loadAccountsPage(window._lastCfg || {});
   }
 
   function showToast(msg, err=false) {
@@ -1241,6 +1344,7 @@
   async function loadConfig() {
     const r = await fetch('/api/config/full');
     cfg = await r.json();
+    window._lastCfg = cfg;   // cache for accounts page
     const env = cfg._envFlags || {};
 
     // ElevenLabs
@@ -1738,10 +1842,112 @@
     showToast('✅ บันทึก Google Emotions แล้ว');
   }
 
+  // ══ PAYMENT ACCOUNTS PAGE ══════════════════════════════════
+
+  let payAccounts = [];   // local working copy
+
+  const ACC_TYPE_INFO = {
+    bank:       { label:'ธนาคาร',           icon:'🏦', numLabel:'เลขบัญชี' },
+    promptpay:  { label:'พร้อมเพย์',         icon:'📲', numLabel:'เบอร์ / เลขบัตร' },
+    truemoney:  { label:'TrueMoney Wallet',  icon:'💚', numLabel:'เบอร์โทรศัพท์' },
+  };
+
+  function loadAccountsPage(cfg) {
+    const pa = cfg.paymentAccounts || {};
+    payAccounts = (pa.accounts || []).map(a => ({ ...a }));
+
+    document.getElementById('acc-showOnGate').checked    = pa.showOnGate    !== false;
+    document.getElementById('acc-showOnOverlay').checked = !!(pa.showOnOverlay);
+
+    renderAccountList();
+  }
+
+  function onAccTypeChange() {
+    const type = document.getElementById('acc-type').value;
+    const t    = ACC_TYPE_INFO[type] || ACC_TYPE_INFO.bank;
+    document.getElementById('acc-number-label').textContent = t.numLabel;
+    document.getElementById('fg-bankName').style.display = type === 'bank' ? '' : 'none';
+  }
+
+  function addAccount() {
+    const type     = document.getElementById('acc-type').value;
+    const bankName = document.getElementById('acc-bankName').value.trim();
+    const number   = document.getElementById('acc-number').value.trim();
+    const name     = document.getElementById('acc-name').value.trim();
+
+    if (!number) return showToast('⚠️ กรุณาใส่เลขบัญชีหรือเบอร์โทร', true);
+    if (!name)   return showToast('⚠️ กรุณาใส่ชื่อบัญชี', true);
+
+    const acc = { id: Date.now(), type, accountName: name, display: true };
+    if (type === 'bank') { acc.bankName = bankName; acc.accountNumber = number; }
+    else                 { acc.phone = number; }
+
+    payAccounts.push(acc);
+    renderAccountList();
+
+    // Clear inputs
+    document.getElementById('acc-number').value  = '';
+    document.getElementById('acc-name').value    = '';
+    document.getElementById('acc-bankName').value = '';
+    showToast('✅ เพิ่มบัญชีแล้ว — กด "บันทึกบัญชี" เพื่อบันทึก');
+  }
+
+  function toggleAccountDisplay(id) {
+    const acc = payAccounts.find(a => a.id === id);
+    if (acc) { acc.display = !acc.display; renderAccountList(); }
+  }
+
+  function deleteAccount(id) {
+    payAccounts = payAccounts.filter(a => a.id !== id);
+    renderAccountList();
+    showToast('🗑️ ลบบัญชีแล้ว — กด "บันทึกบัญชี" เพื่อบันทึก');
+  }
+
+  function renderAccountList() {
+    const list = document.getElementById('accountList');
+    if (!payAccounts.length) {
+      list.innerHTML = '<p style="font-size:13px;color:var(--muted)">ยังไม่มีบัญชี — กดเพิ่มด้านบน</p>';
+      return;
+    }
+    list.innerHTML = payAccounts.map(a => {
+      const t   = ACC_TYPE_INFO[a.type] || ACC_TYPE_INFO.bank;
+      const num = a.type === 'bank' ? (a.accountNumber || '') : (a.phone || '');
+      const bank = a.bankName ? ` · ${a.bankName}` : '';
+      return `<div class="account-item">
+        <div class="account-item-icon">${t.icon}</div>
+        <div class="account-item-body">
+          <div class="account-item-type">${t.label}${bank}</div>
+          <div class="account-item-name">${a.accountName || ''}</div>
+          <div class="account-item-num">${num}</div>
+        </div>
+        <div class="account-item-actions">
+          <button class="acc-toggle-btn ${a.display!==false?'active':''}"
+                  onclick="toggleAccountDisplay(${a.id})">
+            ${a.display !== false ? '👁 แสดง' : '🙈 ซ่อน'}
+          </button>
+          <button class="acc-del-btn" onclick="deleteAccount(${a.id})">🗑</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  async function saveAccounts() {
+    const body = {
+      paymentAccounts: {
+        showOnGate:    document.getElementById('acc-showOnGate').checked,
+        showOnOverlay: document.getElementById('acc-showOnOverlay').checked,
+        accounts:      payAccounts,
+      },
+    };
+    await fetch('/api/config', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+    showToast('✅ บันทึกบัญชีรับเงินแล้ว');
+  }
+
   // init
   initUrls();
   loadConfig();
   loadOverview();
+  onAccTypeChange(); // init account form labels
 </script>
 </body>
 </html>

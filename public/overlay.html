@@ -256,6 +256,26 @@
   .alert-box[data-emotion="angry"]     .alert-message { border-left-color:rgba(220,38,38,.7);color:#fca5a5;background:rgba(220,38,38,.1); }
   .alert-box[data-emotion="whispering"].alert-message { font-style:italic;opacity:.85; }
 
+  /* ── Payment channels footer in alert ── */
+  .alert-payment {
+    padding: 8px 20px 14px;
+    border-top: 1px solid rgba(255,255,255,.06);
+    background: rgba(0,0,0,.18);
+  }
+  .pay-footer-label {
+    font-size: 9px; font-weight: 700; color: rgba(255,255,255,.3);
+    text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 6px;
+  }
+  .pay-chips { display: flex; gap: 7px; flex-wrap: wrap; }
+  .pay-chip {
+    background: rgba(255,255,255,.06); border-radius: 8px;
+    padding: 5px 10px; font-size: 11.5px; color: rgba(255,255,255,.7);
+    border: 1px solid rgba(255,255,255,.1);
+    display: flex; align-items: center; gap: 5px; line-height: 1.2;
+  }
+  .pay-chip .chip-icon { font-size: 14px; }
+  .pay-chip .chip-num { font-weight: 700; color: rgba(255,255,255,.9); font-size: 12px; }
+
   .alert-progress { height:3px; background:rgba(255,255,255,.08); position:relative; overflow:hidden; }
   .alert-progress-bar { height:100%; background:var(--t-badge); width:100%; transform-origin:left; }
 
@@ -314,6 +334,11 @@
         <div class="alert-message" id="alertMessage">ข้อความจากผู้บริจาค</div>
       </div>
     </div>
+    <!-- Payment channels footer -->
+    <div class="alert-payment" id="alertPayment" style="display:none">
+      <div class="pay-footer-label">💳 โอนมาที่</div>
+      <div class="pay-chips" id="payChips"></div>
+    </div>
     <div class="alert-progress"><div class="alert-progress-bar" id="progressBar"></div></div>
   </div>
 </div>
@@ -367,11 +392,18 @@
     neutral:    null,
   };
 
-  let currentTheme   = 'purple-galaxy';
-  let queue          = [];
-  let isShowing      = false;
-  let alertDuration  = 8000;
-  let lastAnimIdx    = -1;
+  let currentTheme    = 'purple-galaxy';
+  let queue           = [];
+  let isShowing       = false;
+  let alertDuration   = 8000;
+  let lastAnimIdx     = -1;
+  let paymentChipsHtml = '';   // pre-rendered payment chips HTML
+
+  const ACCOUNT_TYPE_OVERLAY = {
+    bank:      { icon:'🏦' },
+    promptpay: { icon:'📲' },
+    truemoney: { icon:'💚' },
+  };
 
   async function loadConfig() {
     try {
@@ -380,6 +412,20 @@
       alertDuration = (cfg.alertDuration || 8) * 1000;
       currentTheme  = cfg.theme || 'purple-galaxy';
       document.body.className = 'theme-' + currentTheme;
+
+      // Build payment chips
+      const pa = cfg.paymentAccounts || {};
+      const accounts = (pa.accounts || []).filter(a => a.display !== false);
+      if (pa.showOnOverlay && accounts.length) {
+        paymentChipsHtml = accounts.map(a => {
+          const ic = (ACCOUNT_TYPE_OVERLAY[a.type] || ACCOUNT_TYPE_OVERLAY.bank).icon;
+          const num = a.type === 'bank' ? (a.accountNumber||'') : (a.phone||a.accountNumber||'');
+          const name = a.accountName || '';
+          return `<div class="pay-chip"><span class="chip-icon">${ic}</span><div><div style="font-size:10px;opacity:.7">${name}</div><div class="chip-num">${num}</div></div></div>`;
+        }).join('');
+      } else {
+        paymentChipsHtml = '';
+      }
     } catch(e) {}
   }
 
@@ -455,6 +501,16 @@
       const msgEl = document.getElementById('alertMessage');
       if (donation.message) { msgEl.textContent = donation.message; msgEl.style.display = 'block'; }
       else { msgEl.style.display = 'none'; }
+
+      // Payment footer
+      const payEl   = document.getElementById('alertPayment');
+      const chipsEl = document.getElementById('payChips');
+      if (paymentChipsHtml) {
+        chipsEl.innerHTML   = paymentChipsHtml;
+        payEl.style.display = 'block';
+      } else {
+        payEl.style.display = 'none';
+      }
 
       document.getElementById('alertIcon').textContent = eData.icon;
       box.dataset.emotion = emotion;
