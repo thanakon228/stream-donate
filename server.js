@@ -194,8 +194,10 @@ app.get('/api/config', (req, res) => {
   const cfg = loadConfig();
   res.json({
     ...cfg,
-    elevenLabsKey: cfg.elevenLabsKey ? '***hidden***' : '',
-    googleTtsKey:  cfg.googleTtsKey  ? '***hidden***' : '',
+    elevenLabsKey:        cfg.elevenLabsKey ? '***hidden***' : '',
+    googleTtsKey:         cfg.googleTtsKey  ? '***hidden***' : '',
+    elevenLabsAvailable:  !!cfg.elevenLabsKey,
+    googleTtsAvailable:   !!cfg.googleTtsKey,
     _envFlags: getEnvFlags(),
   });
 });
@@ -215,12 +217,19 @@ app.get('/api/donations', (req, res) => res.json(loadDonations()));
 // POST new donation
 app.post('/api/donate', async (req, res) => {
   const cfg = loadConfig();
-  const { name, amount, message, emotion = 'neutral' } = req.body;
+  const { name, amount, message, emotion = 'neutral', ttsProvider: donorProvider } = req.body;
 
   if (!name || !amount) return res.status(400).json({ error: 'Name and amount required' });
   if (Number(amount) < cfg.minDonate) {
     return res.status(400).json({ error: `Minimum donation is ${cfg.minDonate} ${cfg.currency}` });
   }
+
+  // Resolve which TTS provider to use — donor's choice takes priority if that provider is configured
+  const resolvedProvider = (() => {
+    if (donorProvider === 'elevenlabs' && cfg.elevenLabsKey) return 'elevenlabs';
+    if (donorProvider === 'google'     && cfg.googleTtsKey)  return 'google';
+    return cfg.ttsProvider; // fallback to default
+  })();
 
   const donation = {
     id: Date.now(),
@@ -229,6 +238,7 @@ app.post('/api/donate', async (req, res) => {
     message: (message || '').trim(),
     emotion,
     currency: cfg.currency,
+    ttsProvider: resolvedProvider,
     timestamp: new Date().toISOString(),
   };
 
@@ -236,7 +246,7 @@ app.post('/api/donate', async (req, res) => {
   if (donation.message) {
     try {
       const ttsText = `${donation.name} บริจาค ${donation.amount} ${donation.currency} พร้อมข้อความว่า ${donation.message}`;
-      audioBase64 = await generateTTS(cfg, ttsText, emotion);
+      audioBase64 = await generateTTS({ ...cfg, ttsProvider: resolvedProvider }, ttsText, emotion);
     } catch (e) {
       console.error('TTS error:', e.response?.data || e.message);
     }
@@ -259,6 +269,7 @@ app.post('/api/test-alert', async (req, res) => {
     message: 'นี่คือการทดสอบการแจ้งเตือน ขอบคุณที่ใช้งาน!',
     emotion,
     currency: cfg.currency,
+    ttsProvider: cfg.ttsProvider,
     timestamp: new Date().toISOString(),
     isTest: true,
   };

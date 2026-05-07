@@ -198,6 +198,43 @@
     color:var(--primary-light);
   }
 
+  /* ── TTS Provider Selector ── */
+  .tts-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+
+  .tts-btn {
+    background:var(--card2); border:2px solid var(--border); border-radius:14px;
+    color:var(--muted); cursor:pointer; font-family:'Kanit',sans-serif;
+    padding:14px 10px; text-align:center; transition:all .25s; position:relative;
+  }
+  .tts-btn:hover { border-color:var(--primary-light); color:var(--text); }
+  .tts-btn.selected {
+    background:var(--selected-bg);
+    border-color:var(--primary-light);
+    color:var(--primary-light);
+    box-shadow: 0 0 16px color-mix(in srgb, var(--primary) 30%, transparent);
+  }
+  .tts-btn .tts-icon { font-size:26px; display:block; margin-bottom:8px; }
+  .tts-btn .tts-name { font-size:14px; font-weight:700; }
+  .tts-btn .tts-desc { font-size:11px; opacity:.65; margin-top:3px; }
+  .tts-btn .tts-check {
+    position:absolute; top:8px; right:8px;
+    background:var(--primary-light); color:#000;
+    border-radius:50%; width:18px; height:18px;
+    display:none; align-items:center; justify-content:center;
+    font-size:10px; font-weight:700;
+  }
+  .tts-btn.selected .tts-check { display:flex; }
+
+  .tts-note {
+    font-size:11px; color:var(--muted); text-align:center; margin-top:10px;
+    padding:6px 10px; background:color-mix(in srgb, var(--primary) 8%, transparent);
+    border-radius:8px; border:1px solid color-mix(in srgb, var(--primary) 20%, transparent);
+  }
+
+  /* card appear animation */
+  @keyframes cardIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+  .card-appear { animation: cardIn .3s cubic-bezier(.34,1.2,.64,1) both; }
+
   .char-count { text-align:right; font-size:11px; color:var(--muted); margin-top:4px; }
 
   .submit-btn {
@@ -241,6 +278,7 @@
     <p class="subtitle">ส่งความรักให้สตรีมเมอร์คุณชื่นชอบ</p>
   </header>
 
+  <!-- Donor info -->
   <div class="card">
     <div class="section-title">ข้อมูลผู้บริจาค</div>
     <div class="input-group">
@@ -250,7 +288,7 @@
     <div class="input-group">
       <label>จำนวนเงิน *</label>
       <div class="amount-row">
-        <input type="number" id="donateAmount" placeholder="0" min="1">
+        <input type="number" id="donateAmount" placeholder="0" min="1" oninput="onAmountInput()">
         <div class="currency-badge" id="currencyBadge">THB</div>
       </div>
       <div class="quick-amounts" id="quickAmounts">
@@ -264,6 +302,7 @@
     </div>
   </div>
 
+  <!-- Message & emotion -->
   <div class="card">
     <div class="section-title">ข้อความ & อารมณ์</div>
     <div class="input-group">
@@ -297,6 +336,26 @@
     </div>
   </div>
 
+  <!-- TTS Provider selector (shown only when both providers are configured) -->
+  <div class="card card-appear" id="tts-picker-card" style="display:none">
+    <div class="section-title">🎙️ เลือกเสียงที่ใช้อ่าน</div>
+    <div class="tts-grid">
+      <button class="tts-btn" data-provider="elevenlabs" id="tts-btn-eleven" onclick="selectTts(this)">
+        <div class="tts-check">✓</div>
+        <span class="tts-icon">🎧</span>
+        <div class="tts-name">ElevenLabs</div>
+        <div class="tts-desc">คุณภาพสูง อ่านชัดเจน</div>
+      </button>
+      <button class="tts-btn" data-provider="google" id="tts-btn-google" onclick="selectTts(this)">
+        <div class="tts-check">✓</div>
+        <span class="tts-icon">🔵</span>
+        <div class="tts-name">Google TTS</div>
+        <div class="tts-desc">เร็ว รองรับหลายภาษา</div>
+      </button>
+    </div>
+    <p class="tts-note" id="tts-note">✨ คุณสามารถเลือกเสียงที่ต้องการได้</p>
+  </div>
+
   <button class="submit-btn" id="submitBtn" onclick="submitDonate()">
     <span class="btn-text">💜 ส่งการบริจาค</span>
     <div class="spinner"></div>
@@ -308,7 +367,12 @@
 <div class="toast" id="toast"></div>
 
 <script>
-  let selectedEmotion = 'neutral';
+  let selectedEmotion    = 'neutral';
+  let selectedTtsProvider = null; // null = use server default
+  let cfgMinDonate       = 20;
+  let cfgCurrency        = 'THB';
+  let bothProvidersAvail = false;
+  let defaultProvider    = 'elevenlabs';
 
   async function loadConfig() {
     try {
@@ -320,12 +384,29 @@
       document.getElementById('streamTitle').innerHTML = cfg.streamTitle
         ? cfg.streamTitle.replace(/(\S+)$/, '<span>$1</span>')
         : 'Stream <span>Donate</span>';
-      document.getElementById('currencyBadge').textContent = cfg.currency || 'THB';
+      cfgCurrency = cfg.currency || 'THB';
+      cfgMinDonate = cfg.minDonate || 20;
+      document.getElementById('currencyBadge').textContent = cfgCurrency;
       document.getElementById('minNote').textContent =
-        `ยอดบริจาคขั้นต่ำ ${cfg.minDonate || 20} ${cfg.currency || 'THB'}`;
-      const provider = cfg.ttsProvider || 'elevenlabs';
+        `ยอดบริจาคขั้นต่ำ ${cfgMinDonate} ${cfgCurrency}`;
+      defaultProvider = cfg.ttsProvider || 'elevenlabs';
+
+      // TTS provider selector — show only if BOTH providers are configured
+      bothProvidersAvail = !!(cfg.elevenLabsAvailable && cfg.googleTtsAvailable);
+      const pickerCard = document.getElementById('tts-picker-card');
+      if (bothProvidersAvail) {
+        pickerCard.style.display = 'block';
+        // pre-select the server's default provider
+        const defaultBtn = document.querySelector(`[data-provider="${defaultProvider}"]`);
+        if (defaultBtn) selectTts(defaultBtn, true);
+      } else {
+        pickerCard.style.display = 'none';
+        selectedTtsProvider = null; // server decides
+      }
+
+      const providerName = defaultProvider === 'google' ? 'Google TTS' : 'ElevenLabs';
       document.getElementById('footerText').textContent =
-        `Powered by ${provider === 'google' ? 'Google TTS' : 'ElevenLabs TTS'} · Stream Donate System`;
+        `Powered by ${providerName} TTS · Stream Donate System`;
     } catch(e) {}
   }
 
@@ -334,12 +415,33 @@
     document.querySelectorAll('.quick-btn').forEach(b => {
       b.classList.toggle('active', parseInt(b.textContent.replace(/[฿,]/g,'')) === v);
     });
+    onAmountInput();
+  }
+
+  function onAmountInput() {
+    const amt = Number(document.getElementById('donateAmount').value);
+    // Quick-btn sync
+    document.querySelectorAll('.quick-btn').forEach(b => {
+      b.classList.toggle('active', parseInt(b.textContent.replace(/[฿,]/g,'')) === amt);
+    });
   }
 
   function selectEmotion(el) {
     document.querySelectorAll('.emotion-btn').forEach(b => b.classList.remove('selected'));
     el.classList.add('selected');
     selectedEmotion = el.dataset.emotion;
+  }
+
+  function selectTts(el, silent = false) {
+    document.querySelectorAll('.tts-btn').forEach(b => b.classList.remove('selected'));
+    el.classList.add('selected');
+    selectedTtsProvider = el.dataset.provider;
+    const note = document.getElementById('tts-note');
+    if (selectedTtsProvider === 'elevenlabs') {
+      note.textContent = '🎧 ElevenLabs — คุณภาพเสียงสูงสุด อ่านออกอารมณ์ได้ชัด';
+    } else {
+      note.textContent = '🔵 Google TTS — เร็ว ประหยัด รองรับหลายภาษา';
+    }
   }
 
   function updateCharCount() {
@@ -356,29 +458,46 @@
   }
 
   async function submitDonate() {
-    const name = document.getElementById('donorName').value.trim();
-    const amount = document.getElementById('donateAmount').value;
+    const name    = document.getElementById('donorName').value.trim();
+    const amount  = document.getElementById('donateAmount').value;
     const message = document.getElementById('donateMessage').value.trim();
-    const btn = document.getElementById('submitBtn');
+    const btn     = document.getElementById('submitBtn');
 
-    if (!name) return showToast('⚠️ กรุณาใส่ชื่อของคุณ', true);
+    if (!name)                     return showToast('⚠️ กรุณาใส่ชื่อของคุณ', true);
     if (!amount || Number(amount) <= 0) return showToast('⚠️ กรุณาใส่จำนวนเงิน', true);
 
     btn.disabled = true; btn.classList.add('loading');
     try {
-      const res = await fetch('/api/donate', {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ name, amount:Number(amount), message, emotion:selectedEmotion }),
+      const body = {
+        name,
+        amount:   Number(amount),
+        message,
+        emotion:  selectedEmotion,
+      };
+      // Include TTS provider choice if both are available
+      if (bothProvidersAvail && selectedTtsProvider) {
+        body.ttsProvider = selectedTtsProvider;
+      }
+
+      const res  = await fetch('/api/donate', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (!res.ok) return showToast('❌ ' + (data.error || 'เกิดข้อผิดพลาด'), true);
+
       showToast('🎉 ขอบคุณสำหรับการบริจาค!');
-      document.getElementById('donorName').value = '';
+      document.getElementById('donorName').value    = '';
       document.getElementById('donateAmount').value = '';
       document.getElementById('donateMessage').value = '';
       updateCharCount();
       document.querySelectorAll('.quick-btn').forEach(b => b.classList.remove('active'));
       selectEmotion(document.querySelector('[data-emotion="neutral"]'));
+      // Reset TTS to default
+      if (bothProvidersAvail) {
+        const defaultBtn = document.querySelector(`[data-provider="${defaultProvider}"]`);
+        if (defaultBtn) selectTts(defaultBtn, true);
+      }
     } catch(e) {
       showToast('❌ ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์', true);
     } finally {
