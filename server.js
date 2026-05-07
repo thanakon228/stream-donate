@@ -92,6 +92,23 @@ const DEFAULTS = {
     showOnOverlay: true,   // show payment info in OBS overlay alert
     accounts: [],          // [{ id, type, bankName, accountNumber, accountName, phone, display }]
   },
+  // ── Donation Tiers ──
+  tiers: [
+    { id:'basic', minAmount:0,   name:'ทั่วไป',  color:'#6b7280', icon:'💝', animation:'slideUp',  features:[] },
+    { id:'nice',  minAmount:20,  name:'น้ำใจ',    color:'#7c3aed', icon:'💜', animation:'bounceIn', features:['emoji'] },
+    { id:'good',  minAmount:50,  name:'ใจดี',     color:'#3b82f6', icon:'💙', animation:'sparkle',  features:['emoji','emotion'] },
+    { id:'super', minAmount:100, name:'ซูเปอร์',  color:'#10b981', icon:'💚', animation:'burst',    features:['emoji','emotion','longMsg'] },
+    { id:'vip',   minAmount:200, name:'วีไอพี',   color:'#f59e0b', icon:'👑', animation:'vip',      features:['emoji','emotion','longMsg','vip'] },
+    { id:'boss',  minAmount:500, name:'บอส',      color:'#ef4444', icon:'🔥', animation:'boss',     features:['emoji','emotion','longMsg','vip','boss'] },
+  ],
+  // ── TTS Read Settings ──
+  ttsRead: {
+    name:    true,
+    amount:  true,
+    message: true,
+  },
+  // ── Lock Amount ──
+  lockAmount: false,
 };
 
 
@@ -121,6 +138,8 @@ function deepMerge(base, saved) {
       ...(saved.paymentAccounts || {}),
       accounts: saved.paymentAccounts?.accounts ?? [],
     },
+    tiers: saved.tiers ?? base.tiers,
+    ttsRead: { ...base.ttsRead, ...(saved.ttsRead || {}) },
   };
 }
 
@@ -167,6 +186,15 @@ function loadConfig() {
   if (e.THEME)                   cfg.theme              = e.THEME;
 
   return cfg;
+}
+
+function buildTtsText(cfg, donation) {
+  const r = cfg.ttsRead || {};
+  const parts = [];
+  if (r.name    !== false && donation.name)    parts.push(donation.name);
+  if (r.amount  !== false && donation.amount)  parts.push(`บริจาค ${donation.amount} ${donation.currency || 'THB'}`);
+  if (r.message !== false && donation.message) parts.push(`พร้อมข้อความว่า ${donation.message}`);
+  return parts.join(' ') || donation.message || '';
 }
 
 // Track which keys came from env vars (so dashboard can show the indicator)
@@ -287,6 +315,9 @@ app.get('/api/config', (req, res) => {
     // Gate enabled = just needs slipVerify.enabled (no API key required for manual mode)
     slipGateEnabled:      !!(cfg.slipVerify?.enabled),
     slipAutoVerify:       !!(cfg.easySlipKey && cfg.slipVerify?.enabled),
+    tiers:      cfg.tiers,
+    ttsRead:    cfg.ttsRead,
+    lockAmount: cfg.lockAmount,
     _envFlags: getEnvFlags(),
   });
 });
@@ -357,30 +388,33 @@ app.post('/api/donate', async (req, res) => {
   };
 
   let audioBase64 = null;
-  if (donation.message) {
+  const ttsText = buildTtsText(cfg, donation);
+  if (ttsText) {
     try {
-      const ttsText = `${donation.name} บริจาค ${donation.amount} ${donation.currency} พร้อมข้อความว่า ${donation.message}`;
       audioBase64 = await generateTTS({ ...cfg, ttsProvider: resolvedProvider }, ttsText, emotion);
     } catch (e) {
       console.error('TTS error:', e.response?.data || e.message);
     }
   }
 
+  const donationTiers = cfg.tiers || [];
+  const tier = [...donationTiers].reverse().find(t => donation.amount >= t.minAmount) || donationTiers[0] || { id:'basic', animation:'slideUp' };
+
   saveDonation(donation);
-  io.emit('new_donation', { ...donation, audioBase64 });
+  io.emit('new_donation', { ...donation, audioBase64, tier });
   res.json({ ok: true, donation });
 });
 
 // POST test alert
 app.post('/api/test-alert', async (req, res) => {
   const cfg = loadConfig();
-  const { emotion = 'excited', name, amount, message } = req.body;
+  const { emotion = 'excited', name, amount, message, ttsOnly = false, forceAnimation } = req.body;
 
   const donation = {
     id: Date.now(),
     name:    (name    || 'ทดสอบระบบ').trim(),
     amount:  Number(amount) || 99,
-    message: message !== undefined ? String(message).trim() : 'นี่คือการทดสอบการแจ้งเตือน ขอบคุณที่ใช้งาน!',
+    message: message !== undefined ? String(message).trim() : 'สวัสดีครับ ขอบคุณสำหรับสตรีมดีๆ!',
     emotion,
     currency: cfg.currency,
     ttsProvider: cfg.ttsProvider,
@@ -389,16 +423,46 @@ app.post('/api/test-alert', async (req, res) => {
   };
 
   let audioBase64 = null;
-  if (donation.message) {
+  const ttsTextTest = buildTtsText(cfg, donation);
+  if (ttsTextTest) {
     try {
-      const ttsText = `${donation.name} บริจาค ${donation.amount} ${donation.currency} พร้อมข้อความว่า ${donation.message}`;
-      audioBase64 = await generateTTS(cfg, ttsText, emotion);
+      audioBase64 = await generateTTS(cfg, ttsTextTest, emotion);
     } catch (e) {
       console.error('TTS test error:', e.response?.data || e.message);
     }
   }
 
-  io.emit('new_donation', { ...donation, audioBase64 });
+  // ttsOnly: generate TTS but don't show overlay
+  if (ttsOnly) {
+    return res.json({ ok: true, audioBase64 });
+  }
+
+  const testTiers = cfg.tiers || [];
+  let testTier = [...testTiers].reverse().find(t => donation.amount >= t.minAmount) || testTiers[0] || { id:'basic', animation:'slideUp' };
+  if (forceAnimation) testTier = { ...testTier, animation: forceAnimation };
+
+  io.emit('new_donation', { ...donation, audioBase64, tier: testTier });
+  res.json({ ok: true });
+});
+
+// POST rerun donation by id — re-emit existing donation with fresh TTS
+app.post('/api/rerun/:id', async (req, res) => {
+  const cfg  = loadConfig();
+  const list = loadDonations();
+  const donation = list.find(d => String(d.id) === String(req.params.id));
+  if (!donation) return res.status(404).json({ error: 'ไม่พบรายการ' });
+
+  let audioBase64 = null;
+  const ttsText = buildTtsText(cfg, donation);
+  if (ttsText) {
+    try { audioBase64 = await generateTTS(cfg, ttsText, donation.emotion || 'neutral'); }
+    catch(e) { console.error('Rerun TTS error:', e.message); }
+  }
+
+  const donationTiers = cfg.tiers || [];
+  const tier = [...donationTiers].reverse().find(t => donation.amount >= t.minAmount) || donationTiers[0] || { id:'basic', animation:'slideUp' };
+
+  io.emit('new_donation', { ...donation, audioBase64, tier, isRerun: true });
   res.json({ ok: true });
 });
 
@@ -585,15 +649,18 @@ async function fireBotDonation() {
   };
 
   let audioBase64 = null;
-  if (donation.message) {
+  const botTtsText = buildTtsText(cfg, donation);
+  if (botTtsText) {
     try {
-      const ttsText = `${donation.name} บริจาค ${donation.amount} ${donation.currency} พร้อมข้อความว่า ${donation.message}`;
-      audioBase64 = await generateTTS(cfg, ttsText, donation.emotion);
+      audioBase64 = await generateTTS(cfg, botTtsText, donation.emotion);
     } catch (e) { console.error('Bot TTS error:', e.message); }
   }
 
+  const botTiers = cfg.tiers || [];
+  const botTier = [...botTiers].reverse().find(t => donation.amount >= t.minAmount) || botTiers[0] || { id:'basic', animation:'slideUp' };
+
   saveDonation(donation);
-  io.emit('new_donation', { ...donation, audioBase64 });
+  io.emit('new_donation', { ...donation, audioBase64, tier: botTier });
   console.log(`🤖 Bot fired: "${donation.message}"`);
 }
 

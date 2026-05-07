@@ -694,22 +694,53 @@
 
   <!-- Donations -->
   <div class="page" id="page-donations">
-    <div class="page-title">💜 รายการบริจาคทั้งหมด</div>
+    <div class="page-title">💜 ประวัติการบริจาค</div>
+
+    <!-- Toolbar -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+      <input type="text" id="donation-search" placeholder="🔍 ค้นหาชื่อ / ข้อความ..."
+        style="flex:1;min-width:180px;background:var(--card);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:9px 14px;font-size:13px;font-family:inherit"
+        oninput="filterDonations()">
+      <select id="donation-filter-emotion"
+        style="background:var(--card);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:9px 12px;font-size:13px"
+        onchange="filterDonations()">
+        <option value="">อารมณ์ทั้งหมด</option>
+        <option value="neutral">😐 ปกติ</option>
+        <option value="happy">😊 มีความสุข</option>
+        <option value="excited">🤩 ตื่นเต้น</option>
+        <option value="sad">😢 เศร้า</option>
+        <option value="angry">😠 โกรธ</option>
+        <option value="whispering">🤫 กระซิบ</option>
+      </select>
+      <button class="btn btn-outline btn-sm" onclick="loadDonations()">🔄 รีเฟรช</button>
+    </div>
+
+    <!-- Stats bar -->
+    <div id="donation-stats-bar" style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap"></div>
+
     <div class="table-card">
       <div class="table-header">
         <h3 id="donations-count">รายการทั้งหมด</h3>
-        <button class="btn btn-outline btn-sm" onclick="loadDonations()">🔄 รีเฟรช</button>
+        <span style="font-size:12px;color:var(--muted)">กด ▶ เพื่อรัน Alert ซ้ำ</span>
       </div>
+      <div style="overflow-x:auto">
       <table>
         <thead>
           <tr>
-            <th>#</th><th>ชื่อ</th><th>จำนวน</th><th>อารมณ์</th><th>ข้อความ</th><th>เวลา</th>
+            <th style="width:36px">#</th>
+            <th>ชื่อ</th>
+            <th>จำนวน</th>
+            <th>อารมณ์</th>
+            <th>ข้อความ</th>
+            <th>เวลา</th>
+            <th style="width:80px">รัน</th>
           </tr>
         </thead>
         <tbody id="all-donations-body">
-          <tr><td colspan="6" class="empty-state"><span class="emoji">💤</span>ยังไม่มีรายการ</td></tr>
+          <tr><td colspan="7" class="empty-state"><span class="emoji">💤</span>ยังไม่มีรายการ</td></tr>
         </tbody>
       </table>
+      </div>
     </div>
   </div>
 
@@ -1043,41 +1074,69 @@
 
   <!-- Test -->
   <div class="page" id="page-test">
-    <div class="page-title">🧪 ทดสอบ Alert</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:800px">
+    <div class="page-title">🧪 ทดสอบระบบ</div>
 
-      <!-- Custom message inputs -->
-      <div class="setting-card">
-        <h3>✏️ ข้อความทดสอบ</h3>
-        <div class="form-group">
-          <label>ชื่อผู้บริจาค</label>
-          <input type="text" id="test-name" value="ทดสอบระบบ" placeholder="ทดสอบระบบ">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+
+      <!-- Left: input form -->
+      <div style="display:flex;flex-direction:column;gap:16px">
+
+        <div class="setting-card" style="margin-bottom:0">
+          <h3>✏️ ข้อมูลทดสอบ</h3>
+          <div class="form-group">
+            <label>ชื่อผู้บริจาค</label>
+            <input type="text" id="test-name" value="ทดสอบระบบ">
+          </div>
+          <div class="form-group">
+            <label>จำนวนเงิน <span style="font-size:11px;color:var(--muted)" id="test-tier-label"></span></label>
+            <input type="number" id="test-amount" value="99" min="1" oninput="updateTestTierLabel()">
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label>ข้อความ</label>
+            <textarea id="test-message" style="min-height:72px">สวัสดีครับ ขอบคุณสำหรับสตรีมดีๆ!</textarea>
+          </div>
         </div>
-        <div class="form-group">
-          <label>จำนวนเงิน</label>
-          <input type="number" id="test-amount" value="99" min="1">
+
+        <!-- Quick Tier Test -->
+        <div class="setting-card" style="margin-bottom:0">
+          <h3>🏆 ทดสอบตาม Tier</h3>
+          <p style="font-size:12px;color:var(--muted);margin-bottom:12px">กดเพื่อตั้งค่าและส่ง Alert ด้วย Tier นั้นทันที</p>
+          <div id="tier-test-buttons" style="display:flex;flex-wrap:wrap;gap:8px"></div>
         </div>
-        <div class="form-group">
-          <label>ข้อความ</label>
-          <textarea id="test-message" style="min-height:80px" placeholder="ข้อความที่จะอ่าน...">นี่คือการทดสอบการแจ้งเตือน ขอบคุณที่ใช้งาน!</textarea>
-        </div>
+
       </div>
 
-      <!-- Emotion buttons -->
-      <div class="setting-card">
-        <h3>🔔 เลือกอารมณ์แล้วส่ง</h3>
-        <p style="font-size:12px;color:var(--muted);margin-bottom:16px">กดปุ่มอารมณ์เพื่อส่ง Alert ไปยัง Overlay ทันที</p>
-        <div class="test-emotions">
-          <button class="test-btn" onclick="sendTest('neutral')">😐 ปกติ</button>
-          <button class="test-btn" onclick="sendTest('happy')">😊 มีความสุข</button>
-          <button class="test-btn" onclick="sendTest('excited')">🤩 ตื่นเต้น</button>
-          <button class="test-btn" onclick="sendTest('sad')">😢 เศร้า</button>
-          <button class="test-btn" onclick="sendTest('angry')">😠 โกรธ</button>
-          <button class="test-btn" onclick="sendTest('whispering')">🤫 กระซิบ</button>
+      <!-- Right: send buttons -->
+      <div style="display:flex;flex-direction:column;gap:16px">
+
+        <!-- Emotion send -->
+        <div class="setting-card" style="margin-bottom:0">
+          <h3>🎭 ส่งตามอารมณ์</h3>
+          <p style="font-size:12px;color:var(--muted);margin-bottom:12px">ส่ง Alert พร้อม TTS ทันที (ต้องเปิด Overlay ไว้)</p>
+          <div class="test-emotions">
+            <button class="test-btn" onclick="sendTest('neutral')">😐 ปกติ</button>
+            <button class="test-btn" onclick="sendTest('happy')">😊 มีความสุข</button>
+            <button class="test-btn" onclick="sendTest('excited')">🤩 ตื่นเต้น</button>
+            <button class="test-btn" onclick="sendTest('sad')">😢 เศร้า</button>
+            <button class="test-btn" onclick="sendTest('angry')">😠 โกรธ</button>
+            <button class="test-btn" onclick="sendTest('whispering')">🤫 กระซิบ</button>
+          </div>
         </div>
-        <p style="font-size:12px;color:var(--muted);margin-top:16px">
-          ⚠️ ต้องเปิดหน้า Overlay ไว้เพื่อรับ Alert
-        </p>
+
+        <!-- Special tests -->
+        <div class="setting-card" style="margin-bottom:0">
+          <h3>⚡ ทดสอบพิเศษ</h3>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <button class="btn btn-primary" onclick="sendTestNoTts()">🔇 ส่ง Alert (ไม่มีเสียง)</button>
+            <button class="btn btn-outline" onclick="sendTestTtsOnly()">🔊 ทดสอบ TTS เท่านั้น (ไม่แสดง)</button>
+            <button class="btn btn-outline" onclick="sendTestNoMsg()">💬 ทดสอบไม่มีข้อความ</button>
+            <button class="btn btn-warn btn-sm" onclick="sendTestAnimation()">🎬 ทดสอบ Animation</button>
+          </div>
+          <p style="font-size:11px;color:var(--muted);margin-top:10px">
+            ⚠️ ต้องเปิดหน้า <strong>Overlay</strong> ไว้ใน OBS หรือ Browser
+          </p>
+        </div>
+
       </div>
     </div>
   </div>
@@ -1328,8 +1387,9 @@
     document.getElementById('page-'+id).classList.add('active');
     event.currentTarget.classList.add('active');
     if (id === 'donations') loadDonations();
-    if (id === 'overview') loadOverview();
-    if (id === 'themes') renderThemes();
+    if (id === 'overview')  loadOverview();
+    if (id === 'themes')    renderThemes();
+    if (id === 'test') { renderTierTestButtons(); updateTestTierLabel(); }
     if (id === 'bot') {
       loadBotPage();
       if (!botStatusInterval) botStatusInterval = setInterval(updateBotStatus, 2000);
@@ -1660,13 +1720,21 @@
 
   function donationRow(d, idx) {
     const em = EMOTIONS_META[d.emotion] || EMOTIONS_META.neutral;
+    const isTest = d.isTest ? ' <span style="font-size:10px;background:rgba(245,158,11,.2);color:#fbbf24;padding:1px 5px;border-radius:4px;margin-left:4px">TEST</span>' : '';
+    const isRerun = d.isRerun ? ' <span style="font-size:10px;background:rgba(124,58,237,.2);color:#a78bfa;padding:1px 5px;border-radius:4px;margin-left:2px">↩</span>' : '';
     return `<tr>
-      ${idx !== undefined ? `<td style="color:var(--muted);font-size:12px">#${idx+1}</td>` : ''}
-      <td><strong>${d.name}</strong>${d.isTest?' <span style="font-size:11px;color:var(--warn)">[TEST]</span>':''}</td>
+      ${idx !== undefined ? `<td style="color:var(--muted);font-size:12px">${idx+1}</td>` : ''}
+      <td><strong>${d.name}</strong>${isTest}${isRerun}</td>
       <td class="amount-cell">฿${Number(d.amount).toLocaleString()}</td>
       <td><span class="emotion-tag">${em.icon} ${em.label}</span></td>
-      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-size:13px">${d.message||'—'}</td>
+      <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-size:13px" title="${(d.message||'').replace(/"/g,'&quot;')}">${d.message||'—'}</td>
       <td class="time-cell">${fmtTime(d.timestamp)}</td>
+      <td>
+        <button onclick="rerunDonation('${d.id}')"
+          style="background:rgba(124,58,237,.15);border:1px solid rgba(124,58,237,.3);color:var(--primary-light);border-radius:7px;padding:5px 10px;cursor:pointer;font-size:13px;transition:all .15s"
+          onmouseover="this.style.background='rgba(124,58,237,.3)'" onmouseout="this.style.background='rgba(124,58,237,.15)'"
+          title="รัน Alert ซ้ำ">▶</button>
+      </td>
     </tr>`;
   }
 
@@ -1688,27 +1756,153 @@
       : '<tr><td colspan="5"><div class="empty-state"><span class="emoji">💤</span>ยังไม่มีรายการ</div></td></tr>';
   }
 
+  let _allDonations = [];
+
   async function loadDonations() {
     const r = await fetch('/api/donations');
-    const list = await r.json();
-    document.getElementById('donations-count').textContent = `รายการทั้งหมด (${list.length})`;
-    const tbody = document.getElementById('all-donations-body');
-    tbody.innerHTML = list.length
-      ? list.map((d,i)=>donationRow(d,i)).join('')
-      : '<tr><td colspan="6"><div class="empty-state"><span class="emoji">💤</span>ยังไม่มีรายการ</div></td></tr>';
+    _allDonations = await r.json();
+    renderDonationStats(_allDonations);
+    filterDonations();
   }
 
-  // test alert
+  function renderDonationStats(list) {
+    const bar = document.getElementById('donation-stats-bar');
+    if (!bar) return;
+    const real = list.filter(d => !d.isTest);
+    const sum = real.reduce((a,d) => a + d.amount, 0);
+    const top = real.length ? real.reduce((a,b) => a.amount > b.amount ? a : b) : null;
+    bar.innerHTML = [
+      { label:'ทั้งหมด', val: list.length + ' ครั้ง', color:'#a78bfa' },
+      { label:'ยอดรวม', val: '฿' + sum.toLocaleString(), color:'#fbbf24' },
+      { label:'สูงสุด', val: top ? `฿${top.amount.toLocaleString()} (${top.name})` : '—', color:'#10b981' },
+    ].map(s => `<div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:8px 14px;font-size:13px">
+      <span style="color:var(--muted);font-size:11px">${s.label}</span><br>
+      <strong style="color:${s.color}">${s.val}</strong>
+    </div>`).join('');
+  }
+
+  function filterDonations() {
+    const q  = (document.getElementById('donation-search')?.value || '').toLowerCase();
+    const em = document.getElementById('donation-filter-emotion')?.value || '';
+    const filtered = _allDonations.filter(d => {
+      const matchQ  = !q  || d.name.toLowerCase().includes(q) || (d.message||'').toLowerCase().includes(q);
+      const matchEm = !em || d.emotion === em;
+      return matchQ && matchEm;
+    });
+    document.getElementById('donations-count').textContent = `รายการทั้งหมด (${filtered.length}/${_allDonations.length})`;
+    const tbody = document.getElementById('all-donations-body');
+    tbody.innerHTML = filtered.length
+      ? filtered.map((d,i) => donationRow(d,i)).join('')
+      : '<tr><td colspan="7"><div class="empty-state"><span class="emoji">🔍</span>ไม่พบรายการ</div></td></tr>';
+  }
+
+  async function rerunDonation(id) {
+    const btn = event?.target;
+    if (btn) { btn.textContent = '⏳'; btn.disabled = true; }
+    const r = await fetch(`/api/rerun/${id}`, { method:'POST' });
+    if (r.ok) {
+      showToast('▶ รัน Alert ซ้ำแล้ว!');
+    } else {
+      const err = await r.json().catch(() => ({}));
+      showToast('❌ ' + (err.error || 'เกิดข้อผิดพลาด'), true);
+    }
+    if (btn) { btn.textContent = '▶'; btn.disabled = false; }
+  }
+
+  // ── TEST SYSTEM ─────────────────────────────────────────────
+  function getTestInputs() {
+    return {
+      name:    document.getElementById('test-name')?.value   || 'ทดสอบระบบ',
+      amount:  Number(document.getElementById('test-amount')?.value) || 99,
+      message: document.getElementById('test-message')?.value ?? 'สวัสดีครับ ขอบคุณสำหรับสตรีมดีๆ!',
+    };
+  }
+
   async function sendTest(emotion) {
-    const name    = document.getElementById('test-name')?.value   || 'ทดสอบระบบ';
-    const amount  = Number(document.getElementById('test-amount')?.value) || 99;
-    const message = document.getElementById('test-message')?.value ?? 'นี่คือการทดสอบการแจ้งเตือน ขอบคุณที่ใช้งาน!';
+    const { name, amount, message } = getTestInputs();
     const r = await fetch('/api/test-alert', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ emotion, name, amount, message }),
     });
-    if (r.ok) showToast(`🧪 ส่ง Test Alert (${EMOTIONS_META[emotion]?.label}) แล้ว!`);
+    if (r.ok) showToast(`🧪 ส่ง Alert (${EMOTIONS_META[emotion]?.label || emotion}) แล้ว!`);
+    else showToast('❌ เกิดข้อผิดพลาด', true);
+  }
+
+  async function sendTestNoTts() {
+    const { name, amount } = getTestInputs();
+    const r = await fetch('/api/test-alert', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ emotion:'neutral', name, amount, message:'' }),
+    });
+    if (r.ok) showToast('🔇 Alert (ไม่มีเสียง) แล้ว!');
+    else showToast('❌ เกิดข้อผิดพลาด', true);
+  }
+
+  async function sendTestTtsOnly() {
+    const { name, amount, message } = getTestInputs();
+    const r = await fetch('/api/test-alert', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ emotion:'neutral', name, amount, message, ttsOnly:true }),
+    });
+    if (r.ok) showToast('🔊 TTS เท่านั้น ส่งแล้ว!');
+    else showToast('❌ เกิดข้อผิดพลาด', true);
+  }
+
+  async function sendTestNoMsg() {
+    const { name, amount } = getTestInputs();
+    const r = await fetch('/api/test-alert', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ emotion:'neutral', name, amount, message:'' }),
+    });
+    if (r.ok) showToast('💬 Alert ไม่มีข้อความ ส่งแล้ว!');
+    else showToast('❌ เกิดข้อผิดพลาด', true);
+  }
+
+  async function sendTestAnimation() {
+    const anims = ['slideUp','dropIn','zoomIn','flipX','bounceIn','swingIn','slideLeft','slideRight'];
+    const picked = anims[Math.floor(Math.random() * anims.length)];
+    const { name, amount, message } = getTestInputs();
+    const r = await fetch('/api/test-alert', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ emotion:'excited', name, amount, message, forceAnimation: picked }),
+    });
+    if (r.ok) showToast(`🎬 Animation: ${picked}`);
+    else showToast('❌ เกิดข้อผิดพลาด', true);
+  }
+
+  function updateTestTierLabel() {
+    const amt   = Number(document.getElementById('test-amount')?.value || 0);
+    const el    = document.getElementById('test-tier-label');
+    const tiers = window._lastCfg?.tiers || [];
+    const tier  = [...tiers].reverse().find(t => amt >= t.minAmount) || tiers[0];
+    if (el && tier) el.innerHTML = `— <span style="color:${tier.color};font-weight:700">${tier.icon} ${tier.name}</span>`;
+  }
+
+  function renderTierTestButtons() {
+    const el    = document.getElementById('tier-test-buttons');
+    const tiers = window._lastCfg?.tiers || [];
+    if (!el || !tiers.length) return;
+    el.innerHTML = tiers.map(t => `
+      <button onclick="sendTierTest('${t.id}')"
+        style="background:${t.color}22;border:1px solid ${t.color}55;color:${t.color};border-radius:10px;padding:8px 14px;cursor:pointer;font-size:13px;font-weight:700;transition:all .2s;font-family:inherit"
+        onmouseover="this.style.background='${t.color}44'" onmouseout="this.style.background='${t.color}22'">
+        ${t.icon} ${t.name}<br><span style="font-size:11px;font-weight:400;opacity:.8">฿${t.minAmount}+</span>
+      </button>`).join('');
+  }
+
+  async function sendTierTest(tierId) {
+    const tiers  = window._lastCfg?.tiers || [];
+    const tier   = tiers.find(t => t.id === tierId);
+    if (!tier) return;
+    const { name, message } = getTestInputs();
+    const amount = tier.minAmount || 1;
+    document.getElementById('test-amount').value = amount;
+    updateTestTierLabel();
+    const r = await fetch('/api/test-alert', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ emotion:'excited', name, amount, message }),
+    });
+    if (r.ok) showToast(`${tier.icon} ทดสอบ Tier "${tier.name}" (฿${amount}) แล้ว!`);
     else showToast('❌ เกิดข้อผิดพลาด', true);
   }
 
