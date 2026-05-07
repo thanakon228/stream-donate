@@ -79,7 +79,8 @@ const DEFAULTS = {
     ],
   },
   // ── Slip Verification ──
-  easySlipKey: '',
+  easySlipKey:        '',
+  easySlipApiVersion: 'v1',  // 'v1' = multipart file upload, 'v2' = JSON base64
   slipVerify: {
     enabled:         false,  // show slip upload on donate page
     required:        false,  // block submission if slip not verified
@@ -252,6 +253,7 @@ app.get('/api/config', (req, res) => {
     elevenLabsKey:        cfg.elevenLabsKey ? '***hidden***' : '',
     googleTtsKey:         cfg.googleTtsKey  ? '***hidden***' : '',
     easySlipKey:          cfg.easySlipKey   ? '***hidden***' : '',
+    easySlipApiVersion:   cfg.easySlipApiVersion || 'v1',
     elevenLabsAvailable:  !!cfg.elevenLabsKey,
     googleTtsAvailable:   !!cfg.googleTtsKey,
     easySlipAvailable:    !!cfg.easySlipKey,
@@ -399,21 +401,39 @@ app.post('/api/verify-slip', (req, res, next) => {
     }
 
     // ── Auto mode: verify via EasySlip API ────────────────────
+    // Supports both v1 (multipart) and v2 (JSON base64) endpoints
     try {
-      const formData = new FormData();
-      formData.append(
-        'files',
-        new Blob([req.file.buffer], { type: req.file.mimetype }),
-        req.file.originalname || 'slip.jpg'
-      );
+      const useV2 = cfg.easySlipApiVersion === 'v2';
 
-      console.log('📋 Sending slip to EasySlip API, size:', req.file.size, 'bytes');
-
-      const response = await fetch('https://developer.easyslip.com/api/v1/verify', {
-        method:  'POST',
-        headers: { Authorization: `Bearer ${cfg.easySlipKey}` },
-        body:    formData,
-      });
+      let response;
+      if (useV2) {
+        // v2: POST JSON with base64 image to https://api.easyslip.com/v2/verify/bank
+        const base64 = req.file.buffer.toString('base64');
+        const dataUrl = `data:${req.file.mimetype};base64,${base64}`;
+        console.log('📋 Sending slip to EasySlip API v2, size:', req.file.size, 'bytes');
+        response = await fetch('https://api.easyslip.com/v2/verify/bank', {
+          method:  'POST',
+          headers: {
+            Authorization:  `Bearer ${cfg.easySlipKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ image: dataUrl }),
+        });
+      } else {
+        // v1: POST multipart/form-data with field name "file"
+        const formData = new FormData();
+        formData.append(
+          'file',
+          new Blob([req.file.buffer], { type: req.file.mimetype }),
+          req.file.originalname || 'slip.jpg'
+        );
+        console.log('📋 Sending slip to EasySlip API v1, size:', req.file.size, 'bytes');
+        response = await fetch('https://developer.easyslip.com/api/v1/verify', {
+          method:  'POST',
+          headers: { Authorization: `Bearer ${cfg.easySlipKey}` },
+          body:    formData,
+        });
+      }
 
       let json;
       try { json = await response.json(); }
@@ -424,13 +444,20 @@ app.post('/api/verify-slip', (req, res, next) => {
       }
 
       console.log('📋 EasySlip response status:', json.status, '| HTTP:', response.status);
+      console.log('📋 EasySlip raw response:', JSON.stringify(json).slice(0, 500));
 
-      if (!response.ok || (json.status && json.status !== 200)) {
-        const msg = json.message || json.error || json.detail || `HTTP ${response.status}`;
+      // v2 uses { success: true, data: {...} }, v1 uses { status: 200, data: {...} }
+      const isOk = useV2
+        ? (json.success === true)
+        : (response.ok && (!json.status || json.status === 200));
+
+      if (!isOk) {
+        const msg = json.message || json.error?.message || json.error || json.detail || `HTTP ${response.status}`;
         return res.status(400).json({ error: 'EasySlip: ' + msg });
       }
 
       const slip         = json.data || json || {};
+      // v2 response uses slip.data.amount.amount, v1 uses slip.amount.amount
       const amount       = slip.amount?.amount ?? slip.amount?.local?.amount ?? slip.amount ?? 0;
       const transRef     = slip.transRef || slip.ref || slip.transactionRef || '';
       const senderName   = slip.sender?.account?.name?.th || slip.sender?.account?.name?.en || slip.sender?.displayName || 'ไม่ระบุ';

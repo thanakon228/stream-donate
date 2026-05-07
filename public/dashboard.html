@@ -866,18 +866,28 @@
       <div style="margin-top:16px;padding:12px 14px;background:rgba(124,58,237,.06);border:1px solid rgba(124,58,237,.2);border-radius:10px">
         <div style="font-size:12px;font-weight:700;color:var(--primary-light);margin-bottom:8px">🔑 ยืนยันอัตโนมัติด้วย EasySlip (ไม่บังคับ)</div>
         <div style="font-size:12px;color:var(--muted);margin-bottom:10px">ถ้าไม่มี API Key — ผู้บริจาคแนบสลิปและพิมพ์ยอดเองได้ (แบบ manual)</div>
-        <div class="form-group" id="fg-easySlipKey" style="margin-bottom:0">
+        <div class="form-group" id="fg-easySlipKey">
           <label>EasySlip API Key
-            <a href="https://easyslip.app/register" target="_blank" style="color:var(--primary-light);font-size:11px">→ สมัครฟรีที่นี่</a>
+            <a href="https://developer.easyslip.com" target="_blank" style="color:var(--primary-light);font-size:11px">→ สมัครฟรีที่นี่</a>
             <span class="env-badge" id="env-badge-easyslip" style="display:none">🔒 จาก Env Var</span>
           </label>
           <input type="password" id="cfg-easySlipKey" placeholder="eas_xxxxxxxxxxxxxxxx (ไม่บังคับ)">
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label>API Version
+            <span style="font-size:11px;color:var(--muted);font-weight:400">— เลือกตาม Dashboard EasySlip ของคุณ</span>
+          </label>
+          <select id="cfg-easySlipApiVersion" style="background:var(--card);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 12px;font-size:13px;width:100%">
+            <option value="v1">v1 — legacy (developer.easyslip.com) · multipart upload</option>
+            <option value="v2">v2 — latest (api.easyslip.com) · JSON base64</option>
+          </select>
         </div>
       </div>
 
       <div style="margin-top:12px;padding:10px;background:rgba(16,185,129,.07);border:1px solid rgba(16,185,129,.2);border-radius:8px;font-size:12px;color:#6ee7b7;line-height:1.7">
         📌 <strong>ไม่มี API Key:</strong> Gate แสดง → อัปโหลดสลิป → พิมพ์ยอดเอง → ดำเนินการต่อ<br>
-        🔍 <strong>มี API Key:</strong> Gate แสดง → อัปโหลดสลิป → ยืนยันอัตโนมัติ → ยอดดึงจากสลิป
+        🔍 <strong>มี API Key v1:</strong> POST multipart · field <code style="background:rgba(255,255,255,.08);padding:1px 5px;border-radius:4px">file</code> → developer.easyslip.com<br>
+        🔍 <strong>มี API Key v2:</strong> POST JSON base64 → api.easyslip.com/v2/verify/bank
       </div>
       <div class="btn-row" style="margin-top:14px">
         <button class="btn btn-primary" onclick="saveSlipSettings()">💾 บันทึกการตั้งค่าสลิป</button>
@@ -1384,10 +1394,11 @@
     loadGoogleEmotionTab('neutral');
 
     // ── EasySlip settings ────────────────────────────────────
-    document.getElementById('cfg-easySlipKey').value    = cfg.easySlipKey || '';
-    document.getElementById('cfg-slipEnabled').checked  = !!(cfg.slipVerify?.enabled);
-    document.getElementById('cfg-slipRequired').checked = !!(cfg.slipVerify?.required);
-    document.getElementById('cfg-slipMinTts').value     = cfg.slipVerify?.minAmountForTts ?? 20;
+    document.getElementById('cfg-easySlipKey').value        = cfg.easySlipKey || '';
+    document.getElementById('cfg-easySlipApiVersion').value = cfg.easySlipApiVersion || 'v1';
+    document.getElementById('cfg-slipEnabled').checked      = !!(cfg.slipVerify?.enabled);
+    document.getElementById('cfg-slipRequired').checked     = !!(cfg.slipVerify?.required);
+    document.getElementById('cfg-slipMinTts').value         = cfg.slipVerify?.minAmountForTts ?? 20;
 
     // ── Env var badges ──────────────────────────────────────
     setEnvBadge('env-badge-easyslip', 'fg-easySlipKey', env.easySlipKey);
@@ -1521,7 +1532,8 @@
 
   async function saveSlipSettings() {
     const body = {
-      easySlipKey: document.getElementById('cfg-easySlipKey').value,
+      easySlipKey:        document.getElementById('cfg-easySlipKey').value,
+      easySlipApiVersion: document.getElementById('cfg-easySlipApiVersion').value,
       slipVerify: {
         enabled:         document.getElementById('cfg-slipEnabled').checked,
         required:        document.getElementById('cfg-slipRequired').checked,
