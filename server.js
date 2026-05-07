@@ -401,39 +401,29 @@ app.post('/api/verify-slip', (req, res, next) => {
     }
 
     // ── Auto mode: verify via EasySlip API ────────────────────
-    // Supports both v1 (multipart) and v2 (JSON base64) endpoints
+    // Both v1 and v2 use multipart/form-data with field name "file"
+    // v1: developer.easyslip.com/api/v1/verify
+    // v2: api.easyslip.com/v2/verify/bank
     try {
       const useV2 = cfg.easySlipApiVersion === 'v2';
+      const endpoint = useV2
+        ? 'https://api.easyslip.com/v2/verify/bank'
+        : 'https://developer.easyslip.com/api/v1/verify';
 
-      let response;
-      if (useV2) {
-        // v2: POST JSON with base64 image to https://api.easyslip.com/v2/verify/bank
-        const base64 = req.file.buffer.toString('base64');
-        const dataUrl = `data:${req.file.mimetype};base64,${base64}`;
-        console.log('📋 Sending slip to EasySlip API v2, size:', req.file.size, 'bytes');
-        response = await fetch('https://api.easyslip.com/v2/verify/bank', {
-          method:  'POST',
-          headers: {
-            Authorization:  `Bearer ${cfg.easySlipKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ image: dataUrl }),
-        });
-      } else {
-        // v1: POST multipart/form-data with field name "file"
-        const formData = new FormData();
-        formData.append(
-          'file',
-          new Blob([req.file.buffer], { type: req.file.mimetype }),
-          req.file.originalname || 'slip.jpg'
-        );
-        console.log('📋 Sending slip to EasySlip API v1, size:', req.file.size, 'bytes');
-        response = await fetch('https://developer.easyslip.com/api/v1/verify', {
-          method:  'POST',
-          headers: { Authorization: `Bearer ${cfg.easySlipKey}` },
-          body:    formData,
-        });
-      }
+      const formData = new FormData();
+      formData.append(
+        'file',
+        new Blob([req.file.buffer], { type: req.file.mimetype }),
+        req.file.originalname || 'slip.jpg'
+      );
+
+      console.log(`📋 Sending slip to EasySlip API ${useV2 ? 'v2' : 'v1'}, size: ${req.file.size} bytes`);
+
+      const response = await fetch(endpoint, {
+        method:  'POST',
+        headers: { Authorization: `Bearer ${cfg.easySlipKey}` },
+        body:    formData,
+      });
 
       let json;
       try { json = await response.json(); }
