@@ -413,6 +413,56 @@
     color: var(--text);
     box-shadow: 0 0 16px rgba(124,58,237,.2);
   }
+
+  /* theme cards */
+  .theme-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+  }
+  .theme-card {
+    background: var(--card2);
+    border: 2px solid var(--border);
+    border-radius: 14px;
+    cursor: pointer;
+    overflow: hidden;
+    transition: all .2s;
+    position: relative;
+  }
+  .theme-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,.3); }
+  .theme-card.active { box-shadow: 0 0 0 3px white; }
+  .theme-preview {
+    height: 70px;
+    position: relative;
+    overflow: hidden;
+  }
+  .theme-preview .bar {
+    position: absolute; bottom: 0; left: 0; right: 0; height: 3px;
+  }
+  .theme-preview .fake-badge {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+    border-radius: 20px; padding: 4px 12px;
+    font-size: 13px; font-weight: 700; color: white; white-space: nowrap;
+    box-shadow: 0 2px 8px rgba(0,0,0,.4);
+  }
+  .theme-preview .fake-name {
+    position: absolute; top: 8px; left: 12px;
+    font-size: 12px; font-weight: 700;
+  }
+  .theme-info {
+    padding: 8px 10px 10px;
+    text-align: center;
+  }
+  .theme-info .name { font-size: 12px; font-weight: 600; }
+  .theme-check {
+    position: absolute; top: 6px; right: 6px;
+    background: white; color: #000; border-radius: 50%;
+    width: 20px; height: 20px; display: none;
+    align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700;
+  }
+  .theme-card.active .theme-check { display: flex; }
 </style>
 </head>
 <body>
@@ -435,6 +485,9 @@
   </div>
   <div class="nav-item" onclick="showPage('emotions')">
     <span class="nav-icon">🎭</span> อารมณ์ TTS
+  </div>
+  <div class="nav-item" onclick="showPage('themes')">
+    <span class="nav-icon">🎨</span> Themes
   </div>
   <div class="nav-item" onclick="showPage('test')">
     <span class="nav-icon">🧪</span> ทดสอบ Alert
@@ -751,6 +804,16 @@
     </div>
   </div>
 
+  <!-- Themes -->
+  <div class="page" id="page-themes">
+    <div class="page-title">🎨 เลือก Theme</div>
+    <div class="setting-card" style="margin-bottom:20px">
+      <h3>🖼️ Theme ของ Overlay & หน้า Donate</h3>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:20px">Theme ที่เลือกจะแสดงบน Alert Overlay ใน OBS และหน้าบริจาค</p>
+      <div class="theme-grid" id="themeGrid"></div>
+    </div>
+  </div>
+
   <!-- Test -->
   <div class="page" id="page-test">
     <div class="page-title">🧪 ทดสอบ Alert</div>
@@ -779,6 +842,67 @@
 <div class="toast" id="toast"></div>
 
 <script>
+  // ── THEMES ─────────────────────────────────────────────────
+  const THEMES = [
+    { id:'purple-galaxy', name:'Purple Galaxy', emoji:'🌌',
+      bg:'linear-gradient(135deg,#0f0a1e,#231845)', bar:'linear-gradient(90deg,#7c3aed,#f59e0b)',
+      badge:'linear-gradient(135deg,#7c3aed,#a855f7)', text:'#c4b5fd', nameColor:'#f3f0ff' },
+    { id:'neon-cyber',    name:'Neon Cyber',    emoji:'⚡',
+      bg:'linear-gradient(135deg,#00080f,#001620)', bar:'linear-gradient(90deg,#00ffcc,#ff0088)',
+      badge:'linear-gradient(135deg,#007a66,#00ffcc)', text:'#00ffcc', nameColor:'#e0fff8' },
+    { id:'fire-gold',     name:'Fire & Gold',   emoji:'🔥',
+      bg:'linear-gradient(135deg,#140800,#281005)', bar:'linear-gradient(90deg,#f97316,#fbbf24)',
+      badge:'linear-gradient(135deg,#c2410c,#f97316)', text:'#fed7aa', nameColor:'#fff7ed' },
+    { id:'ocean-deep',    name:'Ocean Deep',    emoji:'🌊',
+      bg:'linear-gradient(135deg,#000f1e,#001e32)', bar:'linear-gradient(90deg,#0ea5e9,#06b6d4)',
+      badge:'linear-gradient(135deg,#0369a1,#0ea5e9)', text:'#7dd3fc', nameColor:'#e0f2fe' },
+    { id:'sakura',        name:'Sakura',        emoji:'🌸',
+      bg:'linear-gradient(135deg,#19050f,#2d0a1e)', bar:'linear-gradient(90deg,#f472b6,#fb7185)',
+      badge:'linear-gradient(135deg,#be185d,#f472b6)', text:'#fbcfe8', nameColor:'#fdf2f8' },
+    { id:'midnight-gold', name:'Midnight Gold', emoji:'✨',
+      bg:'linear-gradient(135deg,#050400,#0f0c00)', bar:'linear-gradient(90deg,#d97706,#fbbf24)',
+      badge:'linear-gradient(135deg,#92400e,#d97706)', text:'#fde68a', nameColor:'#fffbeb' },
+    { id:'arctic-ice',    name:'Arctic Ice',    emoji:'❄️',
+      bg:'linear-gradient(135deg,#050f19,#0a1928)', bar:'linear-gradient(90deg,#e0f2fe,#7dd3fc)',
+      badge:'linear-gradient(135deg,#0369a1,#e0f2fe)', text:'#e0f2fe', nameColor:'#f0f9ff' },
+    { id:'forest-night',  name:'Forest Night',  emoji:'🌿',
+      bg:'linear-gradient(135deg,#020c05,#051610)', bar:'linear-gradient(90deg,#22c55e,#86efac)',
+      badge:'linear-gradient(135deg,#15803d,#22c55e)', text:'#bbf7d0', nameColor:'#f0fdf4' },
+    { id:'sunset-vibe',   name:'Sunset Vibe',   emoji:'🌅',
+      bg:'linear-gradient(135deg,#14050f,#230a19)', bar:'linear-gradient(90deg,#f43f5e,#fb923c)',
+      badge:'linear-gradient(135deg,#be123c,#f43f5e)', text:'#fda4af', nameColor:'#fff1f2' },
+    { id:'monochrome',    name:'Monochrome',    emoji:'🖤',
+      bg:'linear-gradient(135deg,#080808,#121212)', bar:'linear-gradient(90deg,#e5e5e5,#737373)',
+      badge:'linear-gradient(135deg,#404040,#e5e5e5)', text:'#d4d4d4', nameColor:'#fafafa' },
+  ];
+
+  let selectedTheme = 'purple-galaxy';
+
+  function renderThemes() {
+    const grid = document.getElementById('themeGrid');
+    if (!grid) return;
+    grid.innerHTML = THEMES.map(t => `
+      <div class="theme-card ${t.id === selectedTheme ? 'active' : ''}" id="tc-${t.id}" onclick="selectTheme('${t.id}')">
+        <div class="theme-check">✓</div>
+        <div class="theme-preview" style="background:${t.bg}">
+          <span class="fake-name" style="color:${t.nameColor}">${t.emoji} ชื่อ</span>
+          <span class="fake-badge" style="background:${t.badge}">฿100</span>
+          <div class="bar" style="background:${t.bar}"></div>
+        </div>
+        <div class="theme-info">
+          <div class="name">${t.emoji} ${t.name}</div>
+        </div>
+      </div>`).join('');
+  }
+
+  async function selectTheme(id) {
+    selectedTheme = id;
+    renderThemes();
+    await fetch('/api/config', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ theme: id }) });
+    showToast(`✅ เปลี่ยน Theme เป็น "${THEMES.find(t=>t.id===id)?.name}" แล้ว`);
+  }
+
   const EMOTIONS_META = {
     neutral:    { icon:'😐', label:'ปกติ' },
     happy:      { icon:'😊', label:'มีความสุข' },
@@ -800,6 +924,7 @@
     event.currentTarget.classList.add('active');
     if (id === 'donations') loadDonations();
     if (id === 'overview') loadOverview();
+    if (id === 'themes') renderThemes();
   }
 
   function showToast(msg, err=false) {
@@ -855,6 +980,9 @@
     document.getElementById('cfg-alertDuration').value = cfg.alertDuration || 8;
     // Provider
     switchProvider(cfg.ttsProvider || 'elevenlabs');
+    // Theme
+    selectedTheme = cfg.theme || 'purple-galaxy';
+    renderThemes();
     // Emotions
     emotionEdits = JSON.parse(JSON.stringify(cfg.emotions || {}));
     googleEmotionEdits = JSON.parse(JSON.stringify(cfg.googleEmotions || {}));

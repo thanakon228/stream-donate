@@ -34,6 +34,7 @@ function loadConfig() {
   if (!fs.existsSync(CONFIG_FILE)) {
     const defaults = {
       // General
+      theme: 'purple-galaxy',
       ttsProvider: 'elevenlabs',
       minDonate: 20,
       currency: 'THB',
