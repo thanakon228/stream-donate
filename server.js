@@ -5,6 +5,17 @@ const cors = require('cors');
 const axios = require('axios');
 const path = require('path');
 const fs = require('fs');
+const multer = require('multer');
+
+// Multer — memory storage (no disk writes, Railway-safe)
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
+  fileFilter: (req, file, cb) => {
+    if (!file.mimetype.startsWith('image/')) return cb(new Error('ต้องเป็นไฟล์รูปภาพเท่านั้น'));
+    cb(null, true);
+  },
+});
 
 const app = express();
 const server = http.createServer(app);
@@ -67,6 +78,13 @@ const DEFAULTS = {
       { id:8, text:'เกมนี้ยากแค่ไหนครับ เทียบกับเกมอื่นๆ?', emotion:'neutral'  },
     ],
   },
+  // ── Slip Verification ──
+  easySlipKey: '',
+  slipVerify: {
+    enabled:         false,  // show slip upload on donate page
+    required:        false,  // block submission if slip not verified
+    minAmountForTts: 20,     // verified amount must be >= this to show TTS picker
+  },
 };
 
 
@@ -97,6 +115,7 @@ function loadConfig() {
         ...(saved.bot || {}),
         messages: saved.bot?.messages ?? DEFAULTS.bot.messages,
       },
+      slipVerify: { ...DEFAULTS.slipVerify, ...(saved.slipVerify || {}) },
     };
   }
 
@@ -104,6 +123,7 @@ function loadConfig() {
   // Set these in Railway Variables panel for persistent storage.
   // They always take priority over config.json.
   const e = process.env;
+  if (e.EASYSLIP_KEY)       cfg.easySlipKey   = e.EASYSLIP_KEY;
   if (e.ELEVENLABS_API_KEY) cfg.elevenLabsKey = e.ELEVENLABS_API_KEY;
   if (e.ELEVEN_VOICE_ID)    cfg.voiceId       = e.ELEVEN_VOICE_ID;
   if (e.ELEVEN_MODEL_ID)    cfg.modelId       = e.ELEVEN_MODEL_ID;
@@ -124,6 +144,7 @@ function loadConfig() {
 function getEnvFlags() {
   const e = process.env;
   return {
+    easySlipKey:   !!e.EASYSLIP_KEY,
     elevenLabsKey: !!e.ELEVENLABS_API_KEY,
     voiceId:       !!e.ELEVEN_VOICE_ID,
     modelId:       !!e.ELEVEN_MODEL_ID,
@@ -219,8 +240,10 @@ app.get('/api/config', (req, res) => {
     ...cfg,
     elevenLabsKey:        cfg.elevenLabsKey ? '***hidden***' : '',
     googleTtsKey:         cfg.googleTtsKey  ? '***hidden***' : '',
+    easySlipKey:          cfg.easySlipKey   ? '***hidden***' : '',
     elevenLabsAvailable:  !!cfg.elevenLabsKey,
     googleTtsAvailable:   !!cfg.googleTtsKey,
+    easySlipAvailable:    !!cfg.easySlipKey,
     _envFlags: getEnvFlags(),
   });
 });
@@ -239,6 +262,10 @@ app.post('/api/config', (req, res) => {
     // Restart bot when its config changes
     updated.bot.enabled ? startBot(updated.bot) : stopBot();
   }
+  // Deep-merge slipVerify
+  if (req.body.slipVerify !== undefined) {
+    updated.slipVerify = { ...(current.slipVerify || {}), ...req.body.slipVerify };
+  }
   saveConfig(updated);
   res.json({ ok: true });
 });
@@ -248,11 +275,15 @@ app.get('/api/donations', (req, res) => res.json(loadDonations()));
 // POST new donation
 app.post('/api/donate', async (req, res) => {
   const cfg = loadConfig();
-  const { name, amount, message, emotion = 'neutral', ttsProvider: donorProvider } = req.body;
+  const { name, amount, message, emotion = 'neutral', ttsProvider: donorProvider, slipRef } = req.body;
 
   if (!name || !amount) return res.status(400).json({ error: 'Name and amount required' });
   if (Number(amount) < cfg.minDonate) {
     return res.status(400).json({ error: `Minimum donation is ${cfg.minDonate} ${cfg.currency}` });
+  }
+  // Slip verification gate — block if required and no ref provided
+  if (cfg.slipVerify?.enabled && cfg.slipVerify?.required && !slipRef) {
+    return res.status(400).json({ error: 'กรุณาแนบสลิปและยืนยันก่อนส่งการบริจาค' });
   }
 
   // Resolve which TTS provider to use — donor's choice takes priority if that provider is configured
@@ -270,6 +301,7 @@ app.post('/api/donate', async (req, res) => {
     emotion,
     currency: cfg.currency,
     ttsProvider: resolvedProvider,
+    slipRef: slipRef || null,
     timestamp: new Date().toISOString(),
   };
 
@@ -317,6 +349,72 @@ app.post('/api/test-alert', async (req, res) => {
 
   io.emit('new_donation', { ...donation, audioBase64 });
   res.json({ ok: true });
+});
+
+// POST verify slip via EasySlip API
+app.post('/api/verify-slip', upload.single('slip'), async (req, res) => {
+  const cfg = loadConfig();
+  if (!cfg.easySlipKey) {
+    return res.status(400).json({ error: 'ยังไม่ได้ตั้งค่า EasySlip API Key ในหน้า Dashboard' });
+  }
+  if (!req.file) {
+    return res.status(400).json({ error: 'ไม่พบไฟล์สลิป กรุณาแนบรูปสลิป' });
+  }
+
+  try {
+    // Use Node 18+ native fetch + FormData
+    const formData = new FormData();
+    formData.append(
+      'files',
+      new Blob([req.file.buffer], { type: req.file.mimetype }),
+      req.file.originalname || 'slip.jpg'
+    );
+
+    const response = await fetch('https://developer.easyslip.com/api/v1/verify', {
+      method:  'POST',
+      headers: { Authorization: `Bearer ${cfg.easySlipKey}` },
+      body:    formData,
+    });
+
+    const json = await response.json();
+
+    if (!response.ok || json.status !== 200) {
+      const msg = json.message || json.error || 'ไม่สามารถยืนยันสลิปได้';
+      return res.status(400).json({ error: msg });
+    }
+
+    const slip        = json.data || {};
+    const amount      = slip.amount?.amount ?? slip.amount?.local?.amount ?? 0;
+    const transRef    = slip.transRef  || '';
+    const senderName  = slip.sender?.account?.name?.th   || slip.sender?.account?.name?.en   || 'ไม่ระบุ';
+    const receiverName= slip.receiver?.account?.name?.th || slip.receiver?.account?.name?.en || 'ไม่ระบุ';
+    const senderBank  = slip.sender?.bank?.name   || slip.sender?.bank?.short   || '';
+    const receiverBank= slip.receiver?.bank?.name || slip.receiver?.bank?.short || '';
+    const date        = slip.date || '';
+
+    res.json({
+      ok:           true,
+      amount,
+      transRef,
+      senderName,
+      senderBank,
+      receiverName,
+      receiverBank,
+      date,
+      minAmountForTts: cfg.slipVerify?.minAmountForTts ?? 20,
+    });
+  } catch (e) {
+    console.error('EasySlip error:', e);
+    res.status(500).json({ error: 'เกิดข้อผิดพลาดในการเชื่อมต่อ EasySlip: ' + e.message });
+  }
+});
+
+// Multer error handler
+app.use((err, req, res, next) => {
+  if (err instanceof multer.MulterError || err.message) {
+    return res.status(400).json({ error: err.message });
+  }
+  next(err);
 });
 
 // GET ElevenLabs voices
