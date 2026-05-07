@@ -577,6 +577,9 @@
   <div class="nav-item" onclick="showPage('test')">
     <span class="nav-icon">🧪</span> ทดสอบ Alert
   </div>
+  <div class="nav-item" onclick="showPage('bot')">
+    <span class="nav-icon">🤖</span> Bot บริจาค
+  </div>
 
   <div class="sidebar-bottom">
     <div style="font-size:12px; color:var(--muted)">
@@ -933,23 +936,130 @@
   <!-- Test -->
   <div class="page" id="page-test">
     <div class="page-title">🧪 ทดสอบ Alert</div>
-    <div class="setting-card" style="max-width:600px">
-      <h3>🔔 ส่ง Test Alert ไปยัง Overlay</h3>
-      <p style="font-size:13px;color:var(--muted);margin-bottom:20px">
-        ทดสอบการแสดงผลและเสียง TTS บน Overlay โดยไม่ต้องบริจาคจริง
-      </p>
-      <label style="font-size:13px;color:var(--muted);display:block;margin-bottom:10px">เลือกอารมณ์ที่จะทดสอบ</label>
-      <div class="test-emotions">
-        <button class="test-btn" onclick="sendTest('neutral')">😐 ปกติ</button>
-        <button class="test-btn" onclick="sendTest('happy')">😊 มีความสุข</button>
-        <button class="test-btn" onclick="sendTest('excited')">🤩 ตื่นเต้น</button>
-        <button class="test-btn" onclick="sendTest('sad')">😢 เศร้า</button>
-        <button class="test-btn" onclick="sendTest('angry')">😠 โกรธ</button>
-        <button class="test-btn" onclick="sendTest('whispering')">🤫 กระซิบ</button>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:800px">
+
+      <!-- Custom message inputs -->
+      <div class="setting-card">
+        <h3>✏️ ข้อความทดสอบ</h3>
+        <div class="form-group">
+          <label>ชื่อผู้บริจาค</label>
+          <input type="text" id="test-name" value="ทดสอบระบบ" placeholder="ทดสอบระบบ">
+        </div>
+        <div class="form-group">
+          <label>จำนวนเงิน</label>
+          <input type="number" id="test-amount" value="99" min="1">
+        </div>
+        <div class="form-group">
+          <label>ข้อความ</label>
+          <textarea id="test-message" style="min-height:80px" placeholder="ข้อความที่จะอ่าน...">นี่คือการทดสอบการแจ้งเตือน ขอบคุณที่ใช้งาน!</textarea>
+        </div>
       </div>
-      <p style="font-size:12px;color:var(--muted);margin-top:16px">
-        ⚠️ ต้องเปิดหน้า Overlay ไว้เพื่อรับ Alert (เปิดใน OBS หรือแท็บอื่น)
-      </p>
+
+      <!-- Emotion buttons -->
+      <div class="setting-card">
+        <h3>🔔 เลือกอารมณ์แล้วส่ง</h3>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:16px">กดปุ่มอารมณ์เพื่อส่ง Alert ไปยัง Overlay ทันที</p>
+        <div class="test-emotions">
+          <button class="test-btn" onclick="sendTest('neutral')">😐 ปกติ</button>
+          <button class="test-btn" onclick="sendTest('happy')">😊 มีความสุข</button>
+          <button class="test-btn" onclick="sendTest('excited')">🤩 ตื่นเต้น</button>
+          <button class="test-btn" onclick="sendTest('sad')">😢 เศร้า</button>
+          <button class="test-btn" onclick="sendTest('angry')">😠 โกรธ</button>
+          <button class="test-btn" onclick="sendTest('whispering')">🤫 กระซิบ</button>
+        </div>
+        <p style="font-size:12px;color:var(--muted);margin-top:16px">
+          ⚠️ ต้องเปิดหน้า Overlay ไว้เพื่อรับ Alert
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bot -->
+  <div class="page" id="page-bot">
+    <div class="page-title">🤖 ระบบบอทบริจาค</div>
+
+    <!-- Status bar -->
+    <div class="setting-card full" style="margin-bottom:20px">
+      <h3>📊 สถานะบอท</h3>
+      <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span id="bot-dot" style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#ef4444;box-shadow:0 0 8px #ef4444;transition:all .3s"></span>
+          <span id="bot-status-text" style="font-weight:600;font-size:15px">หยุดทำงาน</span>
+        </div>
+        <div id="bot-next-fire" style="font-size:13px;color:var(--muted)"></div>
+        <div id="bot-msg-stat" style="font-size:13px;color:var(--muted)"></div>
+        <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-success btn-sm" onclick="botStart()">▶ เริ่มบอท</button>
+          <button class="btn btn-outline btn-sm" onclick="botStop()">⏹ หยุด</button>
+          <button class="btn btn-warn btn-sm" onclick="botFire()">🎯 ยิงทันที</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-grid">
+
+      <!-- Bot settings -->
+      <div class="setting-card">
+        <h3>⚙️ ตั้งค่าบอท</h3>
+        <div class="form-group">
+          <label>ชื่อบอท</label>
+          <input type="text" id="bot-name" value="🤖 DonateBot" placeholder="🤖 DonateBot">
+        </div>
+        <div class="form-group">
+          <label>ส่งข้อความทุกๆ กี่นาที</label>
+          <input type="number" id="bot-interval" value="5" min="1" max="120">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div class="form-group">
+            <label>จำนวนขั้นต่ำ</label>
+            <input type="number" id="bot-min-amount" value="20" min="1">
+          </div>
+          <div class="form-group">
+            <label>จำนวนสูงสุด</label>
+            <input type="number" id="bot-max-amount" value="99" min="1">
+          </div>
+        </div>
+        <div class="form-group">
+          <div class="checkbox-group">
+            <input type="checkbox" id="bot-enabled">
+            <label style="margin:0;color:var(--text);font-size:14px;cursor:pointer">เปิดบอทอัตโนมัติ</label>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-top:6px;padding-left:28px">เปิดแล้วจะส่งข้อความตามเวลาที่ตั้งอัตโนมัติ</div>
+        </div>
+        <div class="btn-row" style="margin-top:12px">
+          <button class="btn btn-primary" onclick="saveBotConfig()">💾 บันทึกตั้งค่า</button>
+        </div>
+      </div>
+
+      <!-- Message manager -->
+      <div class="setting-card">
+        <h3>💬 คลังข้อความบอท <span id="bot-msg-count" style="font-size:12px;color:var(--muted);font-weight:400"></span></h3>
+
+        <div id="bot-messages-list" style="max-height:240px;overflow-y:auto;margin-bottom:14px;border:1px solid var(--border);border-radius:10px;padding:4px"></div>
+
+        <!-- Add new message -->
+        <div style="border-top:1px solid var(--border);padding-top:14px">
+          <div style="font-size:12px;color:var(--muted);font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:6px">➕ เพิ่มข้อความใหม่</div>
+          <div class="form-group">
+            <textarea id="new-bot-msg" placeholder="พิมพ์ข้อความหรือคำถามสำหรับบอท..." style="min-height:64px" maxlength="300"></textarea>
+          </div>
+          <div style="display:flex;gap:8px;align-items:flex-end">
+            <div class="form-group" style="flex:1;margin:0">
+              <label>อารมณ์</label>
+              <select id="new-bot-emotion">
+                <option value="neutral">😐 ปกติ</option>
+                <option value="happy">😊 มีความสุข</option>
+                <option value="excited">🤩 ตื่นเต้น</option>
+                <option value="sad">😢 เศร้า</option>
+                <option value="angry">😠 โกรธ</option>
+                <option value="whispering">🤫 กระซิบ</option>
+              </select>
+            </div>
+            <button class="btn btn-primary btn-sm" style="margin-bottom:0;height:42px" onclick="addBotMessage()">➕ เพิ่ม</button>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -1042,6 +1152,13 @@
     if (id === 'donations') loadDonations();
     if (id === 'overview') loadOverview();
     if (id === 'themes') renderThemes();
+    if (id === 'bot') {
+      loadBotPage();
+      if (!botStatusInterval) botStatusInterval = setInterval(updateBotStatus, 2000);
+    } else {
+      clearInterval(botStatusInterval);
+      botStatusInterval = null;
+    }
   }
 
   function showToast(msg, err=false) {
@@ -1350,13 +1467,140 @@
 
   // test alert
   async function sendTest(emotion) {
+    const name    = document.getElementById('test-name')?.value   || 'ทดสอบระบบ';
+    const amount  = Number(document.getElementById('test-amount')?.value) || 99;
+    const message = document.getElementById('test-message')?.value ?? 'นี่คือการทดสอบการแจ้งเตือน ขอบคุณที่ใช้งาน!';
     const r = await fetch('/api/test-alert', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ emotion }),
+      body: JSON.stringify({ emotion, name, amount, message }),
     });
     if (r.ok) showToast(`🧪 ส่ง Test Alert (${EMOTIONS_META[emotion]?.label}) แล้ว!`);
     else showToast('❌ เกิดข้อผิดพลาด', true);
+  }
+
+  // ── BOT SYSTEM ──────────────────────────────────────────────
+  let botMessages       = [];
+  let botStatusInterval = null;
+  const EMOTION_ICONS   = { neutral:'😐', happy:'😊', excited:'🤩', sad:'😢', angry:'😠', whispering:'🤫' };
+
+  async function loadBotPage() {
+    const r   = await fetch('/api/config/full');
+    const cfg = await r.json();
+    const bot = cfg.bot || {};
+    document.getElementById('bot-name').value       = bot.botName || '🤖 DonateBot';
+    document.getElementById('bot-interval').value   = bot.intervalMinutes || 5;
+    document.getElementById('bot-min-amount').value = bot.minAmount || 20;
+    document.getElementById('bot-max-amount').value = bot.maxAmount || 99;
+    document.getElementById('bot-enabled').checked  = !!bot.enabled;
+    botMessages = (bot.messages || []).map((m, i) => ({
+      id:      m.id || (Date.now() + i),
+      text:    typeof m === 'string' ? m : (m.text || ''),
+      emotion: typeof m === 'string' ? 'neutral' : (m.emotion || 'neutral'),
+    }));
+    renderBotMessages();
+    updateBotStatus();
+  }
+
+  function renderBotMessages() {
+    const list    = document.getElementById('bot-messages-list');
+    const countEl = document.getElementById('bot-msg-count');
+    if (countEl) countEl.textContent = `(${botMessages.length} ข้อความ)`;
+    if (!list) return;
+    if (!botMessages.length) {
+      list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px">ยังไม่มีข้อความ — เพิ่มด้านล่าง</div>';
+      return;
+    }
+    list.innerHTML = botMessages.map((m, i) => `
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;font-size:13px;transition:background .15s" onmouseover="this.style.background='rgba(255,255,255,.04)'" onmouseout="this.style.background='transparent'">
+        <span style="color:var(--muted);min-width:24px;font-size:11px;font-weight:600">${i+1}.</span>
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${m.text.replace(/"/g,'&quot;')}">${m.text}</span>
+        <span style="font-size:16px;flex-shrink:0">${EMOTION_ICONS[m.emotion] || '😐'}</span>
+        <button onclick="deleteBotMsg(${m.id})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:15px;padding:2px 4px;border-radius:4px;transition:color .15s" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color=''" title="ลบ">🗑</button>
+      </div>`).join('');
+  }
+
+  function addBotMessage() {
+    const text    = document.getElementById('new-bot-msg').value.trim();
+    const emotion = document.getElementById('new-bot-emotion').value;
+    if (!text) return showToast('⚠️ กรุณาพิมพ์ข้อความก่อน', true);
+    botMessages.push({ id: Date.now(), text, emotion });
+    renderBotMessages();
+    document.getElementById('new-bot-msg').value = '';
+    document.getElementById('new-bot-emotion').value = 'neutral';
+    showToast('✅ เพิ่มข้อความแล้ว');
+  }
+
+  function deleteBotMsg(id) {
+    botMessages = botMessages.filter(m => m.id !== id);
+    renderBotMessages();
+  }
+
+  async function saveBotConfig() {
+    const bot = {
+      botName:         document.getElementById('bot-name').value || '🤖 DonateBot',
+      intervalMinutes: Number(document.getElementById('bot-interval').value) || 5,
+      minAmount:       Number(document.getElementById('bot-min-amount').value) || 20,
+      maxAmount:       Number(document.getElementById('bot-max-amount').value) || 99,
+      enabled:         document.getElementById('bot-enabled').checked,
+      messages:        botMessages,
+    };
+    await fetch('/api/config', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bot }),
+    });
+    showToast('✅ บันทึกตั้งค่าบอทแล้ว');
+    setTimeout(updateBotStatus, 400);
+  }
+
+  async function botStart() {
+    const r = await fetch('/api/bot/start', { method: 'POST' });
+    const d = await r.json();
+    showToast(d.running ? '✅ เริ่มบอทแล้ว!' : '❌ ไม่สามารถเริ่มได้ (บันทึกข้อความก่อน)', !d.running);
+    updateBotStatus();
+  }
+
+  async function botStop() {
+    await fetch('/api/bot/stop', { method: 'POST' });
+    showToast('⏹ หยุดบอทแล้ว');
+    updateBotStatus();
+  }
+
+  async function botFire() {
+    const r = await fetch('/api/bot/fire', { method: 'POST' });
+    if (r.ok) showToast('🎯 ยิงข้อความบอทแล้ว!');
+    else showToast('❌ ไม่มีข้อความในคลัง', true);
+  }
+
+  async function updateBotStatus() {
+    try {
+      const r = await fetch('/api/bot/status');
+      const s = await r.json();
+      const dot  = document.getElementById('bot-dot');
+      const txt  = document.getElementById('bot-status-text');
+      const next = document.getElementById('bot-next-fire');
+      const stat = document.getElementById('bot-msg-stat');
+      if (!dot) return;
+      if (s.running) {
+        dot.style.background  = '#10b981';
+        dot.style.boxShadow   = '0 0 10px #10b981';
+        txt.textContent       = 'กำลังทำงาน';
+        txt.style.color       = '#10b981';
+        if (s.nextFireIn !== null) {
+          const secs = Math.ceil(s.nextFireIn / 1000);
+          const m    = Math.floor(secs / 60);
+          const ss   = secs % 60;
+          next.textContent = `⏱ ยิงครั้งถัดไปใน ${m > 0 ? m + ' นาที ' : ''}${ss} วินาที`;
+        }
+      } else {
+        dot.style.background = '#ef4444';
+        dot.style.boxShadow  = '0 0 8px #ef4444';
+        txt.textContent      = 'หยุดทำงาน';
+        txt.style.color      = 'var(--text)';
+        next.textContent     = '';
+      }
+      if (stat) stat.textContent = `📝 ${s.messageCount} ข้อความในคลัง`;
+    } catch(e) {}
   }
 
   // ── Google Voices ──────────────────────────────────────────

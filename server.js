@@ -50,7 +50,25 @@ const DEFAULTS = {
     angry:      { speakingRate: 1.2,  pitch: -2,  volumeGainDb: 4  },
     whispering: { speakingRate: 0.8,  pitch: -4,  volumeGainDb: -6 },
   },
+  bot: {
+    enabled: false,
+    intervalMinutes: 5,
+    botName: '🤖 DonateBot',
+    minAmount: 20,
+    maxAmount: 99,
+    messages: [
+      { id:1, text:'วันนี้สตรีมถึงกี่โมงครับ?',               emotion:'neutral'  },
+      { id:2, text:'ชื่นชอบเกมนี้ยังไงบ้างครับ?',               emotion:'happy'    },
+      { id:3, text:'เล่นเกมนี้มากี่ปีแล้วครับ?',               emotion:'neutral'  },
+      { id:4, text:'มีแผนอะไรสนุกๆ ในสตรีมวันนี้ไหมครับ?',    emotion:'excited'  },
+      { id:5, text:'ตอนนี้อยู่ส่วนไหนของเกมครับ?',             emotion:'neutral'  },
+      { id:6, text:'ทำไมถึงชอบเกมประเภทนี้ครับ?',             emotion:'happy'    },
+      { id:7, text:'มี tips อะไรสำหรับมือใหม่ไหมครับ?',       emotion:'neutral'  },
+      { id:8, text:'เกมนี้ยากแค่ไหนครับ เทียบกับเกมอื่นๆ?', emotion:'neutral'  },
+    ],
+  },
 };
+
 
 const EMOTION_CUES = {
   happy:      '(พูดด้วยความสุขและยิ้มแย้ม) ',
@@ -72,8 +90,13 @@ function loadConfig() {
     cfg = {
       ...DEFAULTS,
       ...saved,
-      emotions:      { ...DEFAULTS.emotions,      ...(saved.emotions || {}) },
-      googleEmotions:{ ...DEFAULTS.googleEmotions, ...(saved.googleEmotions || {}) },
+      emotions:       { ...DEFAULTS.emotions,       ...(saved.emotions || {}) },
+      googleEmotions: { ...DEFAULTS.googleEmotions, ...(saved.googleEmotions || {}) },
+      bot: {
+        ...DEFAULTS.bot,
+        ...(saved.bot || {}),
+        messages: saved.bot?.messages ?? DEFAULTS.bot.messages,
+      },
     };
   }
 
@@ -207,7 +230,15 @@ app.get('/api/config/full', (req, res) => {
 });
 
 app.post('/api/config', (req, res) => {
-  const updated = { ...loadConfig(), ...req.body };
+  const current = loadConfig();
+  let updated = { ...current, ...req.body };
+  // Deep-merge bot sub-object so partial saves don't wipe messages
+  if (req.body.bot !== undefined) {
+    updated.bot = { ...(current.bot || {}), ...req.body.bot };
+    if (req.body.bot.messages !== undefined) updated.bot.messages = req.body.bot.messages;
+    // Restart bot when its config changes
+    updated.bot.enabled ? startBot(updated.bot) : stopBot();
+  }
   saveConfig(updated);
   res.json({ ok: true });
 });
@@ -260,13 +291,13 @@ app.post('/api/donate', async (req, res) => {
 // POST test alert
 app.post('/api/test-alert', async (req, res) => {
   const cfg = loadConfig();
-  const { emotion = 'excited' } = req.body;
+  const { emotion = 'excited', name, amount, message } = req.body;
 
   const donation = {
     id: Date.now(),
-    name: 'ทดสอบระบบ',
-    amount: 99,
-    message: 'นี่คือการทดสอบการแจ้งเตือน ขอบคุณที่ใช้งาน!',
+    name:    (name    || 'ทดสอบระบบ').trim(),
+    amount:  Number(amount) || 99,
+    message: message !== undefined ? String(message).trim() : 'นี่คือการทดสอบการแจ้งเตือน ขอบคุณที่ใช้งาน!',
     emotion,
     currency: cfg.currency,
     ttsProvider: cfg.ttsProvider,
@@ -275,11 +306,13 @@ app.post('/api/test-alert', async (req, res) => {
   };
 
   let audioBase64 = null;
-  try {
-    const ttsText = `${donation.name} บริจาค ${donation.amount} ${donation.currency} พร้อมข้อความว่า ${donation.message}`;
-    audioBase64 = await generateTTS(cfg, ttsText, emotion);
-  } catch (e) {
-    console.error('TTS test error:', e.response?.data || e.message);
+  if (donation.message) {
+    try {
+      const ttsText = `${donation.name} บริจาค ${donation.amount} ${donation.currency} พร้อมข้อความว่า ${donation.message}`;
+      audioBase64 = await generateTTS(cfg, ttsText, emotion);
+    } catch (e) {
+      console.error('TTS test error:', e.response?.data || e.message);
+    }
   }
 
   io.emit('new_donation', { ...donation, audioBase64 });
@@ -317,6 +350,100 @@ app.get('/api/google-voices', async (req, res) => {
   }
 });
 
+// ─── Bot Engine ─────────────────────────────────────────────────────────────
+
+let botTimer        = null;
+let botLastFireTime = null;
+let botIntervalMs   = 0;
+
+function startBot(botCfg) {
+  stopBot();
+  const bot = botCfg || loadConfig().bot || {};
+  if (!bot.enabled)           return console.log('🤖 Bot disabled — not starting.');
+  if (!bot.messages?.length)  return console.log('🤖 Bot has no messages — not starting.');
+  botIntervalMs   = (bot.intervalMinutes || 5) * 60 * 1000;
+  botLastFireTime = Date.now();
+  botTimer = setInterval(async () => {
+    botLastFireTime = Date.now();
+    await fireBotDonation();
+  }, botIntervalMs);
+  console.log(`🤖 Bot started — fires every ${bot.intervalMinutes} min`);
+}
+
+function stopBot() {
+  if (botTimer) { clearInterval(botTimer); botTimer = null; }
+  botIntervalMs   = 0;
+  botLastFireTime = null;
+}
+
+async function fireBotDonation() {
+  const cfg = loadConfig();
+  const bot = cfg.bot || {};
+  const msgs = bot.messages || [];
+  if (!msgs.length) return;
+
+  const msg    = msgs[Math.floor(Math.random() * msgs.length)];
+  const minAmt = Number(bot.minAmount) || 20;
+  const maxAmt = Number(bot.maxAmount) || 99;
+  const amount = Math.floor(Math.random() * (maxAmt - minAmt + 1)) + minAmt;
+
+  const donation = {
+    id:          Date.now(),
+    name:        bot.botName || '🤖 DonateBot',
+    amount,
+    message:     typeof msg === 'string' ? msg : (msg.text || ''),
+    emotion:     (typeof msg === 'object' ? msg.emotion : null) || 'neutral',
+    currency:    cfg.currency,
+    ttsProvider: cfg.ttsProvider,
+    timestamp:   new Date().toISOString(),
+    isBot:       true,
+  };
+
+  let audioBase64 = null;
+  if (donation.message) {
+    try {
+      const ttsText = `${donation.name} บริจาค ${donation.amount} ${donation.currency} พร้อมข้อความว่า ${donation.message}`;
+      audioBase64 = await generateTTS(cfg, ttsText, donation.emotion);
+    } catch (e) { console.error('Bot TTS error:', e.message); }
+  }
+
+  saveDonation(donation);
+  io.emit('new_donation', { ...donation, audioBase64 });
+  console.log(`🤖 Bot fired: "${donation.message}"`);
+}
+
+// GET bot status
+app.get('/api/bot/status', (req, res) => {
+  const bot = loadConfig().bot || {};
+  const running   = botTimer !== null;
+  const nextFireIn = (running && botLastFireTime && botIntervalMs)
+    ? Math.max(0, botIntervalMs - (Date.now() - botLastFireTime))
+    : null;
+  res.json({
+    running,
+    enabled:         !!bot.enabled,
+    intervalMinutes: bot.intervalMinutes || 5,
+    botName:         bot.botName || '🤖 DonateBot',
+    messageCount:    (bot.messages || []).length,
+    nextFireIn,
+  });
+});
+
+app.post('/api/bot/start', (req, res) => {
+  startBot();
+  res.json({ ok: true, running: botTimer !== null });
+});
+
+app.post('/api/bot/stop', (req, res) => {
+  stopBot();
+  res.json({ ok: true, running: false });
+});
+
+app.post('/api/bot/fire', async (req, res) => {
+  await fireBotDonation();
+  res.json({ ok: true });
+});
+
 // ─── Socket ──────────────────────────────────────────────────────────────────
 
 io.on('connection', (socket) => {
@@ -325,6 +452,9 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () =>
-  console.log(`\n🎉 Donation Server running!\n   Donate page  : http://localhost:${PORT}/donate.html\n   Overlay (OBS) : http://localhost:${PORT}/overlay.html\n   Dashboard     : http://localhost:${PORT}/dashboard.html\n`)
-);
+server.listen(PORT, () => {
+  console.log(`\n🎉 Donation Server running!\n   Donate page  : http://localhost:${PORT}/donate.html\n   Overlay (OBS) : http://localhost:${PORT}/overlay.html\n   Dashboard     : http://localhost:${PORT}/dashboard.html\n`);
+  // Auto-start bot if it was enabled
+  const botCfg = loadConfig().bot;
+  if (botCfg?.enabled && botCfg?.messages?.length) startBot(botCfg);
+});
