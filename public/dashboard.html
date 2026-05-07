@@ -15,11 +15,64 @@
     --success: #10b981; --error: #ef4444; --warn: #f59e0b;
   }
 
+  /* ── THEMES ──────────────────────────────────────────────── */
+  body.theme-purple-galaxy {
+    --primary:#7c3aed; --primary-light:#a78bfa; --primary-dark:#5b21b6;
+    --accent:#f59e0b; --bg:#0a0814; --card:#120f20; --card2:#1a1530;
+    --text:#f3f0ff; --muted:#8b7eb8; --border:#2d2356;
+  }
+  body.theme-neon-cyber {
+    --primary:#00ffcc; --primary-light:#5fffd9; --primary-dark:#00b38f;
+    --accent:#ff0088; --bg:#000810; --card:#00111a; --card2:#001a26;
+    --text:#e0fff8; --muted:#4db8a0; --border:#003344;
+  }
+  body.theme-fire-gold {
+    --primary:#f97316; --primary-light:#fb923c; --primary-dark:#c2410c;
+    --accent:#fbbf24; --bg:#140800; --card:#1e0e00; --card2:#2a1400;
+    --text:#fff7ed; --muted:#c2824a; --border:#3d1c00;
+  }
+  body.theme-ocean-deep {
+    --primary:#0ea5e9; --primary-light:#38bdf8; --primary-dark:#0369a1;
+    --accent:#06b6d4; --bg:#000f1e; --card:#001628; --card2:#001e36;
+    --text:#e0f2fe; --muted:#4e8fa8; --border:#003355;
+  }
+  body.theme-sakura {
+    --primary:#f472b6; --primary-light:#f9a8d4; --primary-dark:#be185d;
+    --accent:#fb7185; --bg:#19050f; --card:#230a18; --card2:#2d1024;
+    --text:#fdf2f8; --muted:#c06a8e; --border:#4a1030;
+  }
+  body.theme-midnight-gold {
+    --primary:#d97706; --primary-light:#fbbf24; --primary-dark:#92400e;
+    --accent:#f59e0b; --bg:#050400; --card:#0f0a00; --card2:#181200;
+    --text:#fffbeb; --muted:#927a3a; --border:#2a1e00;
+  }
+  body.theme-arctic-ice {
+    --primary:#7dd3fc; --primary-light:#bae6fd; --primary-dark:#0ea5e9;
+    --accent:#e0f2fe; --bg:#050f19; --card:#081824; --card2:#0c2233;
+    --text:#f0f9ff; --muted:#4a7a9a; --border:#1a3a55;
+  }
+  body.theme-forest-night {
+    --primary:#22c55e; --primary-light:#4ade80; --primary-dark:#15803d;
+    --accent:#86efac; --bg:#020c05; --card:#051610; --card2:#081f18;
+    --text:#f0fdf4; --muted:#4a8a5e; --border:#0f3a1e;
+  }
+  body.theme-sunset-vibe {
+    --primary:#f43f5e; --primary-light:#fb7185; --primary-dark:#be123c;
+    --accent:#fb923c; --bg:#14050f; --card:#1e0812; --card2:#280d1a;
+    --text:#fff1f2; --muted:#b05070; --border:#3d0e1e;
+  }
+  body.theme-monochrome {
+    --primary:#a3a3a3; --primary-light:#d4d4d4; --primary-dark:#525252;
+    --accent:#e5e5e5; --bg:#080808; --card:#111111; --card2:#1a1a1a;
+    --text:#fafafa; --muted:#737373; --border:#2a2a2a;
+  }
+
   body {
     font-family: 'Kanit', sans-serif;
     background: var(--bg);
     color: var(--text);
     min-height: 100vh;
+    transition: background-color .4s, color .3s;
   }
 
   body::before {
@@ -897,6 +950,7 @@
 
   async function selectTheme(id) {
     selectedTheme = id;
+    document.body.className = 'theme-' + id;
     renderThemes();
     await fetch('/api/config', { method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ theme: id }) });
@@ -982,6 +1036,7 @@
     switchProvider(cfg.ttsProvider || 'elevenlabs');
     // Theme
     selectedTheme = cfg.theme || 'purple-galaxy';
+    document.body.className = 'theme-' + selectedTheme;
     renderThemes();
     // Emotions
     emotionEdits = JSON.parse(JSON.stringify(cfg.emotions || {}));
