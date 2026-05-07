@@ -255,6 +255,9 @@ app.get('/api/config', (req, res) => {
     elevenLabsAvailable:  !!cfg.elevenLabsKey,
     googleTtsAvailable:   !!cfg.googleTtsKey,
     easySlipAvailable:    !!cfg.easySlipKey,
+    // Gate enabled = just needs slipVerify.enabled (no API key required for manual mode)
+    slipGateEnabled:      !!(cfg.slipVerify?.enabled),
+    slipAutoVerify:       !!(cfg.easySlipKey && cfg.slipVerify?.enabled),
     _envFlags: getEnvFlags(),
   });
 });
@@ -370,70 +373,91 @@ app.post('/api/test-alert', async (req, res) => {
   res.json({ ok: true });
 });
 
-// POST verify slip via EasySlip API
-app.post('/api/verify-slip', upload.single('slip'), async (req, res) => {
-  const cfg = loadConfig();
-  if (!cfg.easySlipKey) {
-    return res.status(400).json({ error: 'ยังไม่ได้ตั้งค่า EasySlip API Key ในหน้า Dashboard' });
-  }
-  if (!req.file) {
-    return res.status(400).json({ error: 'ไม่พบไฟล์สลิป กรุณาแนบรูปสลิป' });
-  }
-
-  try {
-    // Use Node 18+ native fetch + FormData
-    const formData = new FormData();
-    formData.append(
-      'files',
-      new Blob([req.file.buffer], { type: req.file.mimetype }),
-      req.file.originalname || 'slip.jpg'
-    );
-
-    const response = await fetch('https://developer.easyslip.com/api/v1/verify', {
-      method:  'POST',
-      headers: { Authorization: `Bearer ${cfg.easySlipKey}` },
-      body:    formData,
-    });
-
-    const json = await response.json();
-
-    if (!response.ok || json.status !== 200) {
-      const msg = json.message || json.error || 'ไม่สามารถยืนยันสลิปได้';
-      return res.status(400).json({ error: msg });
+// POST verify slip — auto via EasySlip if key configured, else manual mode
+app.post('/api/verify-slip', (req, res, next) => {
+  // Run multer first, then handle in async function
+  upload.single('slip')(req, res, async (multerErr) => {
+    if (multerErr) {
+      return res.status(400).json({ error: multerErr.message || 'ไฟล์ไม่ถูกต้อง' });
     }
 
-    const slip        = json.data || {};
-    const amount      = slip.amount?.amount ?? slip.amount?.local?.amount ?? 0;
-    const transRef    = slip.transRef  || '';
-    const senderName  = slip.sender?.account?.name?.th   || slip.sender?.account?.name?.en   || 'ไม่ระบุ';
-    const receiverName= slip.receiver?.account?.name?.th || slip.receiver?.account?.name?.en || 'ไม่ระบุ';
-    const senderBank  = slip.sender?.bank?.name   || slip.sender?.bank?.short   || '';
-    const receiverBank= slip.receiver?.bank?.name || slip.receiver?.bank?.short || '';
-    const date        = slip.date || '';
+    const cfg = loadConfig();
 
-    res.json({
-      ok:           true,
-      amount,
-      transRef,
-      senderName,
-      senderBank,
-      receiverName,
-      receiverBank,
-      date,
-      minAmountForTts: cfg.slipVerify?.minAmountForTts ?? 20,
-    });
-  } catch (e) {
-    console.error('EasySlip error:', e);
-    res.status(500).json({ error: 'เกิดข้อผิดพลาดในการเชื่อมต่อ EasySlip: ' + e.message });
-  }
-});
+    if (!req.file) {
+      return res.status(400).json({ error: 'ไม่พบไฟล์สลิป กรุณาแนบรูปสลิป' });
+    }
 
-// Multer error handler
-app.use((err, req, res, next) => {
-  if (err instanceof multer.MulterError || err.message) {
-    return res.status(400).json({ error: err.message });
-  }
-  next(err);
+    // ── Manual mode: no EasySlip key configured ────────────────
+    if (!cfg.easySlipKey) {
+      // Just acknowledge the upload — amount will be entered manually
+      return res.json({
+        ok:          true,
+        mode:        'manual',
+        message:     'อัปโหลดสลิปสำเร็จ — กรุณาใส่จำนวนเงินด้วยตนเอง',
+        minAmountForTts: cfg.slipVerify?.minAmountForTts ?? 20,
+      });
+    }
+
+    // ── Auto mode: verify via EasySlip API ────────────────────
+    try {
+      const formData = new FormData();
+      formData.append(
+        'files',
+        new Blob([req.file.buffer], { type: req.file.mimetype }),
+        req.file.originalname || 'slip.jpg'
+      );
+
+      console.log('📋 Sending slip to EasySlip API, size:', req.file.size, 'bytes');
+
+      const response = await fetch('https://developer.easyslip.com/api/v1/verify', {
+        method:  'POST',
+        headers: { Authorization: `Bearer ${cfg.easySlipKey}` },
+        body:    formData,
+      });
+
+      let json;
+      try { json = await response.json(); }
+      catch(e) {
+        const text = await response.text().catch(() => '');
+        console.error('EasySlip non-JSON response:', text);
+        return res.status(502).json({ error: 'EasySlip ตอบกลับไม่ถูกต้อง: ' + text.slice(0, 200) });
+      }
+
+      console.log('📋 EasySlip response status:', json.status, '| HTTP:', response.status);
+
+      if (!response.ok || (json.status && json.status !== 200)) {
+        const msg = json.message || json.error || json.detail || `HTTP ${response.status}`;
+        return res.status(400).json({ error: 'EasySlip: ' + msg });
+      }
+
+      const slip         = json.data || json || {};
+      const amount       = slip.amount?.amount ?? slip.amount?.local?.amount ?? slip.amount ?? 0;
+      const transRef     = slip.transRef || slip.ref || slip.transactionRef || '';
+      const senderName   = slip.sender?.account?.name?.th || slip.sender?.account?.name?.en || slip.sender?.displayName || 'ไม่ระบุ';
+      const receiverName = slip.receiver?.account?.name?.th || slip.receiver?.account?.name?.en || slip.receiver?.displayName || 'ไม่ระบุ';
+      const senderBank   = slip.sender?.bank?.name || slip.sender?.bank?.short || '';
+      const receiverBank = slip.receiver?.bank?.name || slip.receiver?.bank?.short || '';
+      const date         = slip.date || slip.transactionDate || '';
+
+      console.log(`✅ Slip verified: ฿${amount} from ${senderName} (ref: ${transRef})`);
+
+      res.json({
+        ok:          true,
+        mode:        'auto',
+        amount,
+        transRef,
+        senderName,
+        senderBank,
+        receiverName,
+        receiverBank,
+        date,
+        minAmountForTts: cfg.slipVerify?.minAmountForTts ?? 20,
+      });
+    } catch (e) {
+      console.error('EasySlip fetch error:', e.message);
+      res.status(500).json({ error: 'ไม่สามารถเชื่อมต่อ EasySlip ได้: ' + e.message });
+    }
+  });
 });
 
 // GET ElevenLabs voices

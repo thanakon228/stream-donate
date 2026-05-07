@@ -831,43 +831,53 @@
       <button class="btn btn-primary" onclick="saveSettings()">💾 บันทึกการตั้งค่า</button>
     </div>
 
-    <!-- EasySlip Verification -->
+    <!-- Slip Gate Settings -->
     <div class="setting-card full" style="margin-top:8px">
-      <h3>🧾 ระบบตรวจสอบสลิป (EasySlip)</h3>
+      <h3>🧾 ระบบแนบสลิปก่อนโดเนท</h3>
       <p style="font-size:13px;color:var(--muted);margin-bottom:16px">
-        ตรวจสอบสลิปธนาคาร · TrueMoney · พร้อมเพย์ อัตโนมัติผ่าน <a href="https://easyslip.app" target="_blank" style="color:var(--primary-light)">EasySlip API</a>
+        บังคับให้ผู้บริจาคแนบสลิปก่อนเข้าหน้าโดเนท — ทำงานได้ทันทีโดยไม่ต้องมี API Key
       </p>
-      <div class="form-group" id="fg-easySlipKey">
-        <label>EasySlip API Key
-          <a href="https://easyslip.app/developer" target="_blank" style="color:var(--primary-light);font-size:11px">→ สมัครที่นี่</a>
-          <span class="env-badge" id="env-badge-easyslip" style="display:none">🔒 จาก Env Var</span>
-        </label>
-        <input type="password" id="cfg-easySlipKey" placeholder="eas_...">
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:8px">
+
+      <!-- Mode indicator -->
+      <div id="slip-mode-badge" style="margin-bottom:14px;padding:10px 14px;border-radius:10px;font-size:13px;display:none"></div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
         <div class="form-group" style="margin-bottom:0">
           <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
             <input type="checkbox" id="cfg-slipEnabled" style="width:auto;accent-color:var(--primary)">
-            เปิดระบบสลิป
+            <strong>เปิดระบบสลิป</strong>
           </label>
-          <div style="font-size:11px;color:var(--muted);margin-top:4px">แสดงช่องแนบสลิปในหน้าโดเนท</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">เด้ง gate ก่อนเข้าหน้าโดเนท</div>
         </div>
         <div class="form-group" style="margin-bottom:0">
           <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
             <input type="checkbox" id="cfg-slipRequired" style="width:auto;accent-color:var(--primary)">
             บังคับแนบสลิป
           </label>
-          <div style="font-size:11px;color:var(--muted);margin-top:4px">บล็อคการส่งหากไม่ยืนยัน</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">บล็อคถ้าไม่อัปโหลด</div>
         </div>
         <div class="form-group" style="margin-bottom:0">
           <label>ยอดขั้นต่ำเพื่อเลือก TTS (฿)</label>
           <input type="number" id="cfg-slipMinTts" value="20" min="1" style="padding:8px 12px">
         </div>
       </div>
-      <div style="margin-top:14px;padding:10px;background:rgba(16,185,129,.07);border:1px solid rgba(16,185,129,.2);border-radius:8px;font-size:12px;color:#6ee7b7;line-height:1.7">
-        🏦 รองรับ: ธนาคารไทยทุกแห่ง · TrueMoney Wallet · PromptPay<br>
-        🔍 ระบบอ่านยอดจากสลิปอัตโนมัติ — ถ้ายอด &lt; ค่าที่ตั้ง จะไม่แสดงตัวเลือก TTS<br>
-        💡 ดู <code>EASYSLIP_KEY</code> ในส่วน Railway Env Vars ด้านล่างสำหรับ persistent storage
+
+      <!-- EasySlip auto-verify (optional) -->
+      <div style="margin-top:16px;padding:12px 14px;background:rgba(124,58,237,.06);border:1px solid rgba(124,58,237,.2);border-radius:10px">
+        <div style="font-size:12px;font-weight:700;color:var(--primary-light);margin-bottom:8px">🔑 ยืนยันอัตโนมัติด้วย EasySlip (ไม่บังคับ)</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:10px">ถ้าไม่มี API Key — ผู้บริจาคแนบสลิปและพิมพ์ยอดเองได้ (แบบ manual)</div>
+        <div class="form-group" id="fg-easySlipKey" style="margin-bottom:0">
+          <label>EasySlip API Key
+            <a href="https://easyslip.app/register" target="_blank" style="color:var(--primary-light);font-size:11px">→ สมัครฟรีที่นี่</a>
+            <span class="env-badge" id="env-badge-easyslip" style="display:none">🔒 จาก Env Var</span>
+          </label>
+          <input type="password" id="cfg-easySlipKey" placeholder="eas_xxxxxxxxxxxxxxxx (ไม่บังคับ)">
+        </div>
+      </div>
+
+      <div style="margin-top:12px;padding:10px;background:rgba(16,185,129,.07);border:1px solid rgba(16,185,129,.2);border-radius:8px;font-size:12px;color:#6ee7b7;line-height:1.7">
+        📌 <strong>ไม่มี API Key:</strong> Gate แสดง → อัปโหลดสลิป → พิมพ์ยอดเอง → ดำเนินการต่อ<br>
+        🔍 <strong>มี API Key:</strong> Gate แสดง → อัปโหลดสลิป → ยืนยันอัตโนมัติ → ยอดดึงจากสลิป
       </div>
       <div class="btn-row" style="margin-top:14px">
         <button class="btn btn-primary" onclick="saveSlipSettings()">💾 บันทึกการตั้งค่าสลิป</button>

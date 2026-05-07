@@ -423,7 +423,7 @@
     <div class="gate-header">
       <div class="gate-logo">🏦</div>
       <div class="gate-title" id="gateTitle">ยืนยันการชำระเงิน</div>
-      <div class="gate-subtitle">โอนเงินมาที่บัญชีด้านล่าง แล้วแนบสลิปเพื่อดำเนินการต่อ</div>
+      <div class="gate-subtitle" id="gateSubtitle">โอนเงินมาที่บัญชีด้านล่าง แล้วแนบสลิปเพื่อดำเนินการต่อ</div>
     </div>
 
     <!-- Payment accounts section -->
@@ -456,6 +456,19 @@
         🔍 ตรวจสอบสลิปกับระบบธนาคาร
       </button>
       <div class="slip-status" id="slipStatus"></div>
+    </div>
+
+    <!-- Manual amount input (shown when no EasySlip key) -->
+    <div id="slipManualBox" style="display:none;margin-top:14px">
+      <div class="card" style="margin-bottom:0;padding:18px 20px">
+        <div class="section-title">💰 ยอดเงินที่โอน</div>
+        <div class="amount-row" style="margin-top:8px">
+          <input type="number" id="slipManualAmt" placeholder="ใส่จำนวนเงินในสลิป" min="1"
+                 style="font-size:18px;font-weight:700"
+                 oninput="checkManualContinue()">
+          <div class="currency-badge" id="manualCurrencyBadge">THB</div>
+        </div>
+      </div>
     </div>
 
     <button class="gate-continue-btn" id="gateContinueBtn" onclick="dismissGate()">
@@ -574,13 +587,15 @@
   let cfgCurrency         = 'THB';
   let bothProvidersAvail  = false;
   let defaultProvider     = 'elevenlabs';
-  let easySlipEnabled     = false;
+  let slipGateEnabled     = false;   // gate shows if this is true
+  let slipAutoVerify      = false;   // EasySlip key available → auto mode
   let slipRequired        = false;
   let minAmountForTts     = 20;
 
   // Slip state
   let slipFile            = null;
-  let slipVerified        = false;
+  let slipUploaded        = false;   // file selected (for manual mode "continue" unlock)
+  let slipVerified        = false;   // auto-verified by EasySlip
   let slipVerifiedAmount  = 0;
   let slipTransRef        = null;
 
@@ -606,6 +621,8 @@
       cfgCurrency  = cfg.currency  || 'THB';
       cfgMinDonate = cfg.minDonate || 20;
       document.getElementById('currencyBadge').textContent = cfgCurrency;
+      const mb = document.getElementById('manualCurrencyBadge');
+      if (mb) mb.textContent = cfgCurrency;
       document.getElementById('minNote').textContent =
         `ยอดบริจาคขั้นต่ำ ${cfgMinDonate} ${cfgCurrency}`;
 
@@ -617,23 +634,29 @@
       } else { selectedTtsProvider = null; }
 
       // Slip/gate config
-      easySlipEnabled = !!(cfg.easySlipAvailable && cfg.slipVerify?.enabled);
+      slipGateEnabled = !!(cfg.slipGateEnabled);           // enabled in settings
+      slipAutoVerify  = !!(cfg.slipAutoVerify);             // EasySlip key available
       slipRequired    = !!(cfg.slipVerify?.required);
       minAmountForTts = cfg.slipVerify?.minAmountForTts ?? 20;
 
       const gate     = document.getElementById('slipGate');
       const mainForm = document.getElementById('mainForm');
+      const verifyBtn = document.getElementById('slipVerifyBtn');
+      const manualBox = document.getElementById('slipManualBox');
 
-      if (easySlipEnabled) {
-        // Show gate
+      if (slipGateEnabled) {
         gate.style.display = 'flex';
-        // Render payment accounts in gate
         renderGateAccounts(cfg.paymentAccounts);
-        // Copy stream title to gate
         document.getElementById('gateTitle').textContent =
           cfg.streamTitle ? `${cfg.streamTitle} — ยืนยันการชำระ` : 'ยืนยันการชำระเงิน';
+        // Show/hide auto-verify button vs manual amount box
+        if (verifyBtn)  verifyBtn.style.display  = 'none';
+        if (manualBox)  manualBox.style.display   = slipAutoVerify ? 'none' : 'block';
+        // Update subtitle
+        document.getElementById('gateSubtitle').textContent = slipAutoVerify
+          ? 'อัปโหลดสลิป แล้วกด "ตรวจสอบสลิป" เพื่อยืนยันอัตโนมัติ'
+          : 'อัปโหลดสลิป แล้วใส่จำนวนเงินที่โอน';
       } else {
-        // No gate — reveal form immediately
         gate.style.display = 'none';
         mainForm.classList.add('revealed');
       }
@@ -672,16 +695,23 @@
 
   // ── Dismiss gate, reveal form ────────────────────────────────
   function dismissGate() {
+    // For manual mode, read amount from manual input
+    if (!slipAutoVerify || !slipVerified) {
+      const manAmt = Number(document.getElementById('slipManualAmt')?.value || 0);
+      if (manAmt > 0) slipVerifiedAmount = manAmt;
+    }
+
     document.getElementById('slipGate').classList.add('dismissed');
     document.getElementById('mainForm').classList.add('revealed');
-    // Pre-fill amount if verified
-    if (slipVerified && slipVerifiedAmount > 0) {
+
+    // Pre-fill amount from slip/manual
+    if (slipVerifiedAmount > 0) {
       document.getElementById('donateAmount').value = slipVerifiedAmount;
       document.getElementById('donateAmount').readOnly = true;
       document.getElementById('amountLockBadge').classList.add('show');
       syncQuickBtns(slipVerifiedAmount);
-      updateTtsPicker();
     }
+    updateTtsPicker();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -689,14 +719,14 @@
   function updateTtsPicker() {
     const pickerCard = document.getElementById('tts-picker-card');
     if (!bothProvidersAvail) { pickerCard.style.display = 'none'; return; }
-    let show = false;
-    if (easySlipEnabled) {
-      show = slipVerified && slipVerifiedAmount >= minAmountForTts;
+    let effectiveAmt = 0;
+    if (slipGateEnabled) {
+      effectiveAmt = slipVerifiedAmount > 0 ? slipVerifiedAmount
+        : Number(document.getElementById('slipManualAmt')?.value || 0);
     } else {
-      const amt = Number(document.getElementById('donateAmount').value);
-      show = amt >= minAmountForTts;
+      effectiveAmt = Number(document.getElementById('donateAmount').value);
     }
-    pickerCard.style.display = show ? 'block' : 'none';
+    pickerCard.style.display = effectiveAmt >= minAmountForTts ? 'block' : 'none';
   }
 
   // ── Amount helpers ───────────────────────────────────────────
@@ -753,17 +783,36 @@
 
   function applySlipFile(file) {
     if (!file.type.startsWith('image/')) return showToast('⚠️ กรุณาเลือกไฟล์รูปภาพเท่านั้น', true);
-    slipFile = file; slipVerified = false; slipVerifiedAmount = 0; slipTransRef = null;
+    slipFile = file; slipUploaded = true;
+    slipVerified = false; slipVerifiedAmount = 0; slipTransRef = null;
 
     const preview = document.getElementById('slipPreview');
     preview.src = URL.createObjectURL(file);
     preview.style.display = 'block';
-
     document.getElementById('slipDrop').classList.add('has-file');
     document.getElementById('slipChangeBtn').style.display = 'inline-block';
-    document.getElementById('slipVerifyBtn').style.display = 'block';
     document.getElementById('slipStatus').style.display    = 'none';
     document.getElementById('gateContinueBtn').classList.remove('show');
+
+    if (slipAutoVerify) {
+      // Auto mode: show verify button
+      document.getElementById('slipVerifyBtn').style.display = 'block';
+    } else {
+      // Manual mode: show amount input, update continue button
+      document.getElementById('slipManualBox').style.display = 'block';
+      checkManualContinue();
+    }
+  }
+
+  function checkManualContinue() {
+    const amt = Number(document.getElementById('slipManualAmt')?.value || 0);
+    if (slipUploaded && amt > 0) {
+      slipVerifiedAmount = amt;
+      document.getElementById('gateContinueBtn').classList.add('show');
+    } else {
+      document.getElementById('gateContinueBtn').classList.remove('show');
+    }
+    updateTtsPicker();
   }
 
   async function verifySlip() {
@@ -783,6 +832,15 @@
       const data = await res.json();
       if (!res.ok || !data.ok) throw new Error(data.error || 'ไม่สามารถยืนยันสลิปได้');
 
+      if (data.mode === 'manual') {
+        // Fallback to manual (API key removed after upload)
+        status.className = 'slip-status ok';
+        status.innerHTML = '📎 ' + data.message;
+        document.getElementById('slipManualBox').style.display = 'block';
+        btn.style.display = 'none';
+        return;
+      }
+
       slipVerified = true; slipVerifiedAmount = data.amount; slipTransRef = data.transRef;
 
       const dateStr = data.date ? new Date(data.date).toLocaleString('th-TH') : '-';
@@ -796,6 +854,7 @@
 
       btn.textContent = '✅ ยืนยันสลิปสำเร็จ';
       document.getElementById('gateContinueBtn').classList.add('show');
+      updateTtsPicker();
     } catch(e) {
       slipVerified = false; slipVerifiedAmount = 0; slipTransRef = null;
       status.className = 'slip-status fail';
@@ -854,14 +913,18 @@
       updateTtsPicker();
 
       // If gate mode — re-show gate for next donation
-      if (easySlipEnabled) {
-        slipFile = null; slipVerified = false; slipVerifiedAmount = 0; slipTransRef = null;
+      if (slipGateEnabled) {
+        slipFile = null; slipUploaded = false;
+        slipVerified = false; slipVerifiedAmount = 0; slipTransRef = null;
         document.getElementById('slipPreview').style.display   = 'none';
         document.getElementById('slipChangeBtn').style.display = 'none';
         document.getElementById('slipVerifyBtn').style.display = 'none';
         document.getElementById('slipStatus').style.display    = 'none';
         document.getElementById('gateContinueBtn').classList.remove('show');
         document.getElementById('slipDrop').classList.remove('has-file');
+        // Reset manual box
+        const mb = document.getElementById('slipManualBox');
+        if (mb) { mb.style.display = 'none'; document.getElementById('slipManualAmt').value = ''; }
         // Re-show gate
         const gate = document.getElementById('slipGate');
         gate.classList.remove('dismissed');
