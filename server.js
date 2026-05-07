@@ -16,22 +16,33 @@ const io = new Server(server, {
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
-
 app.get('/', (req, res) => res.redirect('/donate.html'));
 
 const CONFIG_FILE = path.join(__dirname, 'config.json');
 const DONATIONS_FILE = path.join(__dirname, 'donations.json');
 
+const EMOTION_CUES = {
+  happy:      '(พูดด้วยความสุขและยิ้มแย้ม) ',
+  excited:    '(พูดด้วยความตื่นเต้นและดีใจมากๆ) ',
+  sad:        '(พูดด้วยความเศร้าและหดหู่ใจ) ',
+  angry:      '(พูดด้วยความโกรธและไม่พอใจ) ',
+  whispering: '(กระซิบเบาๆ อย่างลึกลับ) ',
+  neutral:    '',
+};
+
 function loadConfig() {
   if (!fs.existsSync(CONFIG_FILE)) {
     const defaults = {
-      elevenLabsKey: '',
-      voiceId: 'EXAVITQu4vr4xnSDxMaL',
-      modelId: 'eleven_multilingual_v2',
+      // General
+      ttsProvider: 'elevenlabs',
       minDonate: 20,
       currency: 'THB',
       streamTitle: 'Stream Donation',
       alertDuration: 8,
+      // ElevenLabs
+      elevenLabsKey: '',
+      voiceId: 'EXAVITQu4vr4xnSDxMaL',
+      modelId: 'eleven_multilingual_v2',
       emotions: {
         happy:      { stability: 0.25, similarity_boost: 0.85, style: 0.75, use_speaker_boost: true },
         sad:        { stability: 0.75, similarity_boost: 0.45, style: 0.4,  use_speaker_boost: false },
@@ -39,7 +50,19 @@ function loadConfig() {
         angry:      { stability: 0.1,  similarity_boost: 0.8,  style: 0.9,  use_speaker_boost: true },
         neutral:    { stability: 0.5,  similarity_boost: 0.75, style: 0.0,  use_speaker_boost: true },
         whispering: { stability: 0.95, similarity_boost: 0.35, style: 0.05, use_speaker_boost: false },
-      }
+      },
+      // Google TTS
+      googleTtsKey: '',
+      googleVoice: 'th-TH-Neural2-C',
+      googleLang: 'th-TH',
+      googleEmotions: {
+        neutral:    { speakingRate: 1.0,  pitch: 0,   volumeGainDb: 0  },
+        happy:      { speakingRate: 1.1,  pitch: 3,   volumeGainDb: 1  },
+        excited:    { speakingRate: 1.35, pitch: 5,   volumeGainDb: 3  },
+        sad:        { speakingRate: 0.85, pitch: -3,  volumeGainDb: -2 },
+        angry:      { speakingRate: 1.2,  pitch: -2,  volumeGainDb: 4  },
+        whispering: { speakingRate: 0.8,  pitch: -4,  volumeGainDb: -6 },
+      },
     };
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(defaults, null, 2));
     return defaults;
@@ -62,25 +85,82 @@ function saveDonation(d) {
   fs.writeFileSync(DONATIONS_FILE, JSON.stringify(list.slice(0, 500), null, 2));
 }
 
-// GET config
+// ─── TTS Helper ─────────────────────────────────────────────────────────────
+
+async function generateTTS(cfg, text, emotion) {
+  const provider = cfg.ttsProvider || 'elevenlabs';
+  const cue = EMOTION_CUES[emotion] || '';
+  const fullText = `${cue}${text}`;
+
+  // ── ElevenLabs ──
+  if (provider === 'elevenlabs') {
+    if (!cfg.elevenLabsKey) return null;
+    const voiceSettings = (cfg.emotions || {})[emotion] || cfg.emotions?.neutral || {};
+    const res = await axios.post(
+      `https://api.elevenlabs.io/v1/text-to-speech/${cfg.voiceId}`,
+      {
+        text: fullText,
+        model_id: cfg.modelId || 'eleven_multilingual_v2',
+        voice_settings: voiceSettings,
+      },
+      {
+        headers: {
+          'xi-api-key': cfg.elevenLabsKey,
+          'Content-Type': 'application/json',
+          Accept: 'audio/mpeg',
+        },
+        responseType: 'arraybuffer',
+      }
+    );
+    return Buffer.from(res.data).toString('base64');
+  }
+
+  // ── Google TTS ──
+  if (provider === 'google') {
+    if (!cfg.googleTtsKey) return null;
+    const emo = (cfg.googleEmotions || {})[emotion] || cfg.googleEmotions?.neutral || {};
+    const res = await axios.post(
+      `https://texttospeech.googleapis.com/v1/text:synthesize?key=${cfg.googleTtsKey}`,
+      {
+        input: { text: fullText },
+        voice: {
+          languageCode: cfg.googleLang || 'th-TH',
+          name: cfg.googleVoice || 'th-TH-Neural2-C',
+        },
+        audioConfig: {
+          audioEncoding: 'MP3',
+          speakingRate: emo.speakingRate ?? 1.0,
+          pitch:        emo.pitch ?? 0,
+          volumeGainDb: emo.volumeGainDb ?? 0,
+        },
+      },
+      { headers: { 'Content-Type': 'application/json' } }
+    );
+    return res.data.audioContent || null;
+  }
+
+  return null;
+}
+
+// ─── Routes ─────────────────────────────────────────────────────────────────
+
 app.get('/api/config', (req, res) => {
   const cfg = loadConfig();
-  // hide key from public
-  res.json({ ...cfg, elevenLabsKey: cfg.elevenLabsKey ? '***hidden***' : '' });
+  res.json({
+    ...cfg,
+    elevenLabsKey: cfg.elevenLabsKey ? '***hidden***' : '',
+    googleTtsKey:  cfg.googleTtsKey  ? '***hidden***' : '',
+  });
 });
 
-// GET config with key (dashboard only — no auth needed for local use)
 app.get('/api/config/full', (req, res) => res.json(loadConfig()));
 
-// POST save config
 app.post('/api/config', (req, res) => {
-  const current = loadConfig();
-  const updated = { ...current, ...req.body };
+  const updated = { ...loadConfig(), ...req.body };
   saveConfig(updated);
   res.json({ ok: true });
 });
 
-// GET donations list
 app.get('/api/donations', (req, res) => res.json(loadDonations()));
 
 // POST new donation
@@ -104,47 +184,17 @@ app.post('/api/donate', async (req, res) => {
   };
 
   let audioBase64 = null;
-
-  if (cfg.elevenLabsKey && donation.message) {
+  if (donation.message) {
     try {
-      const voiceSettings = cfg.emotions[emotion] || cfg.emotions.neutral;
-      const emotionCues = {
-        happy:      '(พูดด้วยความสุขและยิ้มแย้ม) ',
-        excited:    '(พูดด้วยความตื่นเต้นและดีใจมากๆ) ',
-        sad:        '(พูดด้วยความเศร้าและหดหู่ใจ) ',
-        angry:      '(พูดด้วยความโกรธและไม่พอใจ) ',
-        whispering: '(กระซิบเบาๆ อย่างลึกลับ) ',
-        neutral:    '',
-      };
-      const cue = emotionCues[emotion] || '';
-      const ttsText = `${cue}${donation.name} บริจาค ${donation.amount} ${donation.currency} พร้อมข้อความว่า ${donation.message}`;
-      const ttsRes = await axios.post(
-        `https://api.elevenlabs.io/v1/text-to-speech/${cfg.voiceId}`,
-        {
-          text: ttsText,
-          model_id: cfg.modelId || 'eleven_multilingual_v2',
-          voice_settings: voiceSettings,
-        },
-        {
-          headers: {
-            'xi-api-key': cfg.elevenLabsKey,
-            'Content-Type': 'application/json',
-            Accept: 'audio/mpeg',
-          },
-          responseType: 'arraybuffer',
-        }
-      );
-      audioBase64 = Buffer.from(ttsRes.data).toString('base64');
+      const ttsText = `${donation.name} บริจาค ${donation.amount} ${donation.currency} พร้อมข้อความว่า ${donation.message}`;
+      audioBase64 = await generateTTS(cfg, ttsText, emotion);
     } catch (e) {
-      console.error('ElevenLabs error:', e.response?.data || e.message);
+      console.error('TTS error:', e.response?.data || e.message);
     }
   }
 
   saveDonation(donation);
-
-  // emit to overlay
   io.emit('new_donation', { ...donation, audioBase64 });
-
   res.json({ ok: true, donation });
 });
 
@@ -157,7 +207,7 @@ app.post('/api/test-alert', async (req, res) => {
     id: Date.now(),
     name: 'ทดสอบระบบ',
     amount: 99,
-    message: 'นี่คือการทดสอบการแจ้งเตือน ElevenLabs ขอบคุณที่ใช้งาน!',
+    message: 'นี่คือการทดสอบการแจ้งเตือน ขอบคุณที่ใช้งาน!',
     emotion,
     currency: cfg.currency,
     timestamp: new Date().toISOString(),
@@ -165,46 +215,18 @@ app.post('/api/test-alert', async (req, res) => {
   };
 
   let audioBase64 = null;
-  if (cfg.elevenLabsKey) {
-    try {
-      const voiceSettings = cfg.emotions[emotion] || cfg.emotions.neutral;
-      const emotionCues = {
-        happy:      '(พูดด้วยความสุขและยิ้มแย้ม) ',
-        excited:    '(พูดด้วยความตื่นเต้นและดีใจมากๆ) ',
-        sad:        '(พูดด้วยความเศร้าและหดหู่ใจ) ',
-        angry:      '(พูดด้วยความโกรธและไม่พอใจ) ',
-        whispering: '(กระซิบเบาๆ อย่างลึกลับ) ',
-        neutral:    '',
-      };
-      const cue = emotionCues[emotion] || '';
-      const ttsText = `${cue}${donation.name} บริจาค ${donation.amount} ${donation.currency} พร้อมข้อความว่า ${donation.message}`;
-      const ttsRes = await axios.post(
-        `https://api.elevenlabs.io/v1/text-to-speech/${cfg.voiceId}`,
-        {
-          text: ttsText,
-          model_id: cfg.modelId || 'eleven_multilingual_v2',
-          voice_settings: voiceSettings,
-        },
-        {
-          headers: {
-            'xi-api-key': cfg.elevenLabsKey,
-            'Content-Type': 'application/json',
-            Accept: 'audio/mpeg',
-          },
-          responseType: 'arraybuffer',
-        }
-      );
-      audioBase64 = Buffer.from(ttsRes.data).toString('base64');
-    } catch (e) {
-      console.error('ElevenLabs test error:', e.response?.data || e.message);
-    }
+  try {
+    const ttsText = `${donation.name} บริจาค ${donation.amount} ${donation.currency} พร้อมข้อความว่า ${donation.message}`;
+    audioBase64 = await generateTTS(cfg, ttsText, emotion);
+  } catch (e) {
+    console.error('TTS test error:', e.response?.data || e.message);
   }
 
   io.emit('new_donation', { ...donation, audioBase64 });
   res.json({ ok: true });
 });
 
-// GET voices list
+// GET ElevenLabs voices
 app.get('/api/voices', async (req, res) => {
   const cfg = loadConfig();
   if (!cfg.elevenLabsKey) return res.json([]);
@@ -218,10 +240,31 @@ app.get('/api/voices', async (req, res) => {
   }
 });
 
+// GET Google TTS voices
+app.get('/api/google-voices', async (req, res) => {
+  const cfg = loadConfig();
+  if (!cfg.googleTtsKey) return res.json([]);
+  try {
+    const r = await axios.get(
+      `https://texttospeech.googleapis.com/v1/voices?key=${cfg.googleTtsKey}`
+    );
+    const voices = (r.data.voices || []).filter(v =>
+      v.languageCodes?.some(lc => lc.startsWith('th') || lc.startsWith('en'))
+    );
+    res.json(voices);
+  } catch (e) {
+    res.status(500).json({ error: 'Cannot fetch Google voices' });
+  }
+});
+
+// ─── Socket ──────────────────────────────────────────────────────────────────
+
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);
   socket.on('disconnect', () => console.log('Client disconnected:', socket.id));
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`\n🎉 Donation Server running!\n   Donate page  : http://localhost:${PORT}/donate.html\n   Overlay (OBS) : http://localhost:${PORT}/overlay.html\n   Dashboard     : http://localhost:${PORT}/dashboard.html\n`));
+server.listen(PORT, () =>
+  console.log(`\n🎉 Donation Server running!\n   Donate page  : http://localhost:${PORT}/donate.html\n   Overlay (OBS) : http://localhost:${PORT}/overlay.html\n   Dashboard     : http://localhost:${PORT}/dashboard.html\n`)
+);
