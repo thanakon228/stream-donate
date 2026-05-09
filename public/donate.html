@@ -575,15 +575,36 @@
     <div class="input-group" style="margin-bottom:0">
       <label>🎭 สไตล์การพูด</label>
       <div class="style-chips" id="styleChips">
-        <button class="style-chip selected" data-style=""          onclick="selectStyle(this)">😐 ปกติ</button>
-        <button class="style-chip"          data-style="excited"   onclick="selectStyle(this)">⚡ ตื่นเต้น</button>
-        <button class="style-chip"          data-style="happy"     onclick="selectStyle(this)">😄 ดีใจ</button>
-        <button class="style-chip"          data-style="heartfelt" onclick="selectStyle(this)">💝 ซึ้งใจ</button>
-        <button class="style-chip"          data-style="sad"       onclick="selectStyle(this)">😢 เศร้า</button>
-        <button class="style-chip"          data-style="funny"     onclick="selectStyle(this)">😂 ขำขัน</button>
-        <button class="style-chip"          data-style="whisper"   onclick="selectStyle(this)">🤫 กระซิบ</button>
+        <!-- Special -->
+        <button class="style-chip selected" data-style="random"     onclick="selectStyle(this)">🎲 สุ่ม</button>
+        <button class="style-chip"          data-style=""           onclick="selectStyle(this)">😐 ปกติ</button>
+        <!-- Positive / Upbeat -->
+        <button class="style-chip"          data-style="excited"    onclick="selectStyle(this)">⚡ ตื่นเต้น</button>
+        <button class="style-chip"          data-style="happy"      onclick="selectStyle(this)">😄 ดีใจ</button>
+        <button class="style-chip"          data-style="cheerful"   onclick="selectStyle(this)">🌟 ร่าเริง</button>
+        <button class="style-chip"          data-style="proud"      onclick="selectStyle(this)">🦁 ภาคภูมิ</button>
+        <button class="style-chip"          data-style="romantic"   onclick="selectStyle(this)">💕 โรแมนติก</button>
+        <button class="style-chip"          data-style="cute"       onclick="selectStyle(this)">🥺 น่ารัก</button>
+        <button class="style-chip"          data-style="heartfelt"  onclick="selectStyle(this)">💝 ซึ้งใจ</button>
+        <!-- Negative / Emotional -->
+        <button class="style-chip"          data-style="sad"        onclick="selectStyle(this)">😢 เศร้า</button>
+        <button class="style-chip"          data-style="crying"     onclick="selectStyle(this)">😭 ร้องไห้</button>
+        <button class="style-chip"          data-style="angry"      onclick="selectStyle(this)">😤 โกรธ</button>
+        <button class="style-chip"          data-style="scared"     onclick="selectStyle(this)">😱 กลัว</button>
+        <button class="style-chip"          data-style="nervous"    onclick="selectStyle(this)">😰 ประหม่า</button>
+        <!-- Surprised / Dramatic -->
+        <button class="style-chip"          data-style="surprised"  onclick="selectStyle(this)">😲 ประหลาดใจ</button>
+        <button class="style-chip"          data-style="dramatic"   onclick="selectStyle(this)">🎭 ดราม่า</button>
+        <button class="style-chip"          data-style="epic"       onclick="selectStyle(this)">🔥 มหากาพย์</button>
+        <!-- Playful / Comic -->
+        <button class="style-chip"          data-style="funny"      onclick="selectStyle(this)">😂 ขำขัน</button>
+        <button class="style-chip"          data-style="sarcastic"  onclick="selectStyle(this)">😏 เยาะเย้ย</button>
+        <!-- Calm / Quiet -->
+        <button class="style-chip"          data-style="whisper"    onclick="selectStyle(this)">🤫 กระซิบ</button>
+        <button class="style-chip"          data-style="mysterious" onclick="selectStyle(this)">🌙 ลึกลับ</button>
+        <button class="style-chip"          data-style="sleepy"     onclick="selectStyle(this)">😴 ง่วงนอน</button>
       </div>
-      <div class="style-hint" id="styleHint" style="display:none"></div>
+      <div class="style-hint" id="styleHint">🎲 ระบบจะสุ่มเลือกสไตล์การพูดให้โดยอัตโนมัติทุกครั้ง!</div>
     </div>
   </div>
 
@@ -650,16 +671,36 @@
 <script>
   // ── State ────────────────────────────────────────────────────
   let selectedTtsProvider = null;
-  let selectedStyle       = '';   // '' | 'excited' | 'happy' | 'heartfelt' | 'sad' | 'funny' | 'whisper'
+  let selectedStyle       = 'random';   // default: random
 
   const STYLE_META = {
+    random:      { hint: '🎲 ระบบจะสุ่มเลือกสไตล์การพูดให้โดยอัตโนมัติทุกครั้ง!' },
     '':          { hint: '' },
-    excited:     { hint: '⚡ พูดด้วยความตื่นเต้นและพลังงานสูง — ใส่ [excited] ในข้อความได้ด้วย' },
-    happy:       { hint: '😄 พูดด้วยความดีใจและร่าเริง — ใส่ [laughs] ในข้อความได้ด้วย' },
+    // Positive / Upbeat
+    excited:     { hint: '⚡ พูดด้วยความตื่นเต้นและพลังงานสูง — ใส่ [excited] ได้ด้วย' },
+    happy:       { hint: '😄 พูดด้วยความดีใจและร่าเริง — ใส่ [laughs] ได้ด้วย' },
+    cheerful:    { hint: '🌟 พูดแบบร่าเริง บับเบิ้ล เต็มไปด้วยพลังงานบวก' },
+    proud:       { hint: '🦁 พูดด้วยความมั่นใจและภาคภูมิใจ' },
+    romantic:    { hint: '💕 พูดด้วยน้ำเสียงอบอุ่น ละมุน โรแมนติก' },
+    cute:        { hint: '🥺 พูดแบบน่ารัก หวานแหวว น่าเอ็นดู' },
     heartfelt:   { hint: '💝 พูดด้วยความซาบซึ้งและอบอุ่นใจ' },
-    sad:         { hint: '😢 พูดด้วยความเศร้าและอารมณ์ — ใส่ [sigh] ในข้อความได้ด้วย' },
-    funny:       { hint: '😂 พูดแบบขำขันและเล่นสนุก — ใส่ [laughs] ในข้อความได้ด้วย' },
-    whisper:     { hint: '🤫 กระซิบเบาๆ — ใส่ [whispering] ในข้อความได้ด้วย' },
+    // Negative / Emotional
+    sad:         { hint: '😢 พูดด้วยความเศร้าและอารมณ์ — ใส่ [sighs] ได้ด้วย' },
+    crying:      { hint: '😭 พูดพร้อมกับร้องไห้ เสียงสั่น — ใส่ [sobbing] ได้ด้วย' },
+    angry:       { hint: '😤 พูดด้วยความหงุดหงิดและโกรธ — ใส่ [angry] ได้ด้วย' },
+    scared:      { hint: '😱 พูดด้วยความกลัว เสียงสั่น — ใส่ [gasps] ได้ด้วย' },
+    nervous:     { hint: '😰 พูดแบบประหม่า ลังเล ไม่มั่นใจ' },
+    // Surprised / Dramatic
+    surprised:   { hint: '😲 พูดด้วยความประหลาดใจ — ใส่ [gasps] ได้ด้วย' },
+    dramatic:    { hint: '🎭 พูดแบบดราม่า เน้นอารมณ์ เหมือนอยู่บนเวที' },
+    epic:        { hint: '🔥 พูดแบบมหากาพย์ ยิ่งใหญ่ พลังเต็มเปี่ยม' },
+    // Playful / Comic
+    funny:       { hint: '😂 พูดแบบขำขัน เล่นสนุก — ใส่ [laughs] ได้ด้วย' },
+    sarcastic:   { hint: '😏 พูดแบบเยาะเย้ย แดกดัน ขำแบบแห้งๆ' },
+    // Calm / Quiet
+    whisper:     { hint: '🤫 กระซิบเบาๆ — ใส่ [whispering] ได้ด้วย' },
+    mysterious:  { hint: '🌙 พูดแบบลึกลับ ลีลาปริศนา น้ำเสียงต่ำ' },
+    sleepy:      { hint: '😴 พูดแบบง่วงนอน เนือยๆ ช้าๆ — ใส่ [yawns] ได้ด้วย' },
   };
   let cfgMinDonate        = 20;
   let cfgCurrency         = 'THB';
@@ -1048,12 +1089,14 @@
       document.getElementById('amountLockBadge').classList.remove('show');
       document.getElementById('donateMessage').value = '';
       updateCharCount(); syncQuickBtns(0);
-      // Reset style picker
-      selectedStyle = '';
+      // Reset style picker → back to random (default)
+      selectedStyle = 'random';
       document.querySelectorAll('.style-chip').forEach(b => b.classList.remove('selected'));
-      const normalBtn = document.querySelector('.style-chip[data-style=""]');
-      if (normalBtn) normalBtn.classList.add('selected');
-      document.getElementById('styleHint').style.display = 'none';
+      const randomBtn = document.querySelector('.style-chip[data-style="random"]');
+      if (randomBtn) randomBtn.classList.add('selected');
+      const hintElReset = document.getElementById('styleHint');
+      hintElReset.textContent   = STYLE_META.random.hint;
+      hintElReset.style.display = '';
       // Reset epic picker
       selectedEpicStyle = 'random';
       document.querySelectorAll('.epic-btn').forEach(b => b.classList.remove('selected'));

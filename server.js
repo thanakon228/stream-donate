@@ -233,14 +233,38 @@ function stripActionTags(text) {
 }
 
 // Map donor-chosen style to provider-specific prefix/tag
+// elevenTag  → prepended to text for eleven_v3 (supports action tags)
+// geminiPrefix → natural-language instruction prepended for Gemini TTS
 const STYLE_MAP = {
-  excited:   { elevenTag: '[excited] ',     geminiPrefix: 'Speak with excitement and high energy: ' },
-  happy:     { elevenTag: '[laughs] ',      geminiPrefix: 'Speak cheerfully and joyfully: ' },
-  heartfelt: { elevenTag: '',               geminiPrefix: 'Speak warmly and with heartfelt sincerity: ' },
-  sad:       { elevenTag: '[sighs] ',       geminiPrefix: 'Speak with sadness and deep emotion: ' },
-  funny:     { elevenTag: '[laughs] ',      geminiPrefix: 'Speak in a humorous and playful tone: ' },
-  whisper:   { elevenTag: '[whispering] ',  geminiPrefix: 'Speak in a soft, intimate whisper: ' },
+  // ── Positive / Upbeat ───────────────────────────────────────────────────────
+  excited:    { elevenTag: '[excited] ',     geminiPrefix: 'Speak with excitement and high energy: ' },
+  happy:      { elevenTag: '[laughs] ',      geminiPrefix: 'Speak cheerfully and joyfully: ' },
+  cheerful:   { elevenTag: '',               geminiPrefix: 'Speak in an upbeat, bubbly, cheerful tone: ' },
+  proud:      { elevenTag: '',               geminiPrefix: 'Speak with confidence and pride: ' },
+  romantic:   { elevenTag: '',               geminiPrefix: 'Speak in a warm, tender, romantic tone: ' },
+  cute:       { elevenTag: '',               geminiPrefix: 'Speak in an adorable, sweet, cute tone: ' },
+  heartfelt:  { elevenTag: '',               geminiPrefix: 'Speak warmly and with heartfelt sincerity: ' },
+  // ── Negative / Emotional ────────────────────────────────────────────────────
+  sad:        { elevenTag: '[sighs] ',       geminiPrefix: 'Speak with sadness and deep emotion: ' },
+  crying:     { elevenTag: '[sobbing] ',     geminiPrefix: 'Speak while crying, voice trembling with emotion: ' },
+  angry:      { elevenTag: '[angry] ',       geminiPrefix: 'Speak with frustration and restrained anger: ' },
+  scared:     { elevenTag: '[gasps] ',       geminiPrefix: 'Speak in a fearful, trembling, scared voice: ' },
+  nervous:    { elevenTag: '',               geminiPrefix: 'Speak nervously and anxiously, with hesitation: ' },
+  // ── Surprised / Dramatic ────────────────────────────────────────────────────
+  surprised:  { elevenTag: '[gasps] ',       geminiPrefix: 'Speak with genuine surprise and astonishment: ' },
+  dramatic:   { elevenTag: '',               geminiPrefix: 'Speak in an extremely dramatic, theatrical way: ' },
+  epic:       { elevenTag: '',               geminiPrefix: 'Speak in a grand, powerful, cinematic epic tone: ' },
+  // ── Playful / Comic ─────────────────────────────────────────────────────────
+  funny:      { elevenTag: '[laughs] ',      geminiPrefix: 'Speak in a humorous and playful tone: ' },
+  sarcastic:  { elevenTag: '',               geminiPrefix: 'Speak sarcastically with dry ironic humor: ' },
+  // ── Calm / Quiet ────────────────────────────────────────────────────────────
+  whisper:    { elevenTag: '[whispering] ',  geminiPrefix: 'Speak in a soft, intimate whisper: ' },
+  mysterious: { elevenTag: '[whispering] ',  geminiPrefix: 'Speak in a mysterious, enigmatic, low tone: ' },
+  sleepy:     { elevenTag: '[yawns] ',       geminiPrefix: 'Speak in a slow, drowsy, half-asleep tone: ' },
 };
+
+// All style keys that can be chosen randomly (excludes '' / normal)
+const STYLE_KEYS = Object.keys(STYLE_MAP);
 
 // Wrap raw PCM audio (from Gemini API) in a WAV container for browser playback
 // Gemini TTS returns s16le PCM at 24 kHz mono
@@ -270,7 +294,11 @@ function pcmToWav(pcmBuffer, sampleRate = 24000, numChannels = 1, bitDepth = 16)
 // Returns base64 string (MP3 for ElevenLabs/Neural2, WAV for Gemini)
 async function generateTTS(cfg, text, amount = 0, ttsStyle = '') {
   const provider = cfg.ttsProvider || 'elevenlabs';
-  const styleInfo = STYLE_MAP[ttsStyle] || {};
+  // 'random' → pick a random style from STYLE_KEYS each call
+  const resolvedStyle = ttsStyle === 'random'
+    ? STYLE_KEYS[Math.floor(Math.random() * STYLE_KEYS.length)]
+    : ttsStyle;
+  const styleInfo = STYLE_MAP[resolvedStyle] || {};
 
   // ── ElevenLabs ──
   // eleven_v3 supports [laughs] [sighs] [gasps] etc.; earlier models do not
