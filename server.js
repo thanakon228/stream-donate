@@ -43,8 +43,10 @@ const DEFAULTS = {
   voiceId: 'EXAVITQu4vr4xnSDxMaL',
   modelId: 'eleven_multilingual_v2',
   googleTtsKey: '',
-  googleTtsModel: '',             // '' = legacy Neural2/WaveNet  |  'gemini-2.5-flash-tts' etc. = Gemini TTS
-  googleVoice: 'th-TH-Neural2-C',
+  googleTtsModel: '',               // '' = legacy Neural2  |  'gemini-2.5-flash-tts' etc. = Gemini TTS
+  googleTtsGeminiMin: 50,           // donations >= this amount use Gemini; below uses legacy (free)
+  googleVoice: 'Kore',              // Gemini voice name
+  googleLegacyVoice: 'th-TH-Neural2-C',  // Neural2 voice for small donations (free tier)
   googleLang: 'th-TH',
   bot: {
     enabled: false,
@@ -220,11 +222,12 @@ function stripActionTags(text) {
   return text.replace(/\[[^\]]*\]/g, '').replace(/\s{2,}/g, ' ').trim();
 }
 
-async function generateTTS(cfg, text) {
+// amount = donation amount; used by Google TTS for tiered model selection
+async function generateTTS(cfg, text, amount = 0) {
   const provider = cfg.ttsProvider || 'elevenlabs';
 
   // ── ElevenLabs ──
-  // eleven_multilingual_v2+ supports [laughs] [sighs] [gasps] etc. natively — pass text as-is
+  // eleven_multilingual_v2+ supports [laughs] [sighs] [gasps] etc. natively
   if (provider === 'elevenlabs') {
     if (!cfg.elevenLabsKey) return null;
     const res = await axios.post(
@@ -250,28 +253,45 @@ async function generateTTS(cfg, text) {
   if (provider === 'google') {
     if (!cfg.googleTtsKey) return null;
 
-    const isGemini = (cfg.googleTtsModel || '').startsWith('gemini');
+    const geminiModel  = cfg.googleTtsModel || '';
+    const geminiMin    = Number(cfg.googleTtsGeminiMin) >= 0 ? Number(cfg.googleTtsGeminiMin) : 50;
+    // Use Gemini only when model is configured AND donation meets the threshold
+    const useGemini    = geminiModel.startsWith('gemini') && amount >= geminiMin;
 
-    // Gemini TTS: supports [laughs] [sigh] [whispering] etc. natively
-    // Legacy Neural2/WaveNet: strip action tags
-    const inputText = isGemini ? text : stripActionTags(text);
+    // Gemini supports action tags; legacy Neural2 does not — strip them
+    const inputText    = useGemini ? text : stripActionTags(text);
+
+    // Tiered voice: big donation → Gemini voice (e.g. Kore)
+    //               small donation → Neural2 legacy (free tier)
+    const voiceName    = useGemini
+      ? (cfg.googleVoice        || 'Kore')
+      : (cfg.googleLegacyVoice  || 'th-TH-Neural2-C');
 
     const voiceParams = {
       languageCode: cfg.googleLang || 'th-TH',
-      name: cfg.googleVoice || (isGemini ? 'Kore' : 'th-TH-Neural2-C'),
+      name: voiceName,
     };
-    if (isGemini) voiceParams.model_name = cfg.googleTtsModel;
+    // ⚠️ Must be camelCase 'modelName' — Google REST API uses camelCase
+    if (useGemini) voiceParams.modelName = geminiModel;
 
-    const res = await axios.post(
-      `https://texttospeech.googleapis.com/v1/text:synthesize?key=${cfg.googleTtsKey}`,
-      {
-        input: { text: inputText },
-        voice: voiceParams,
-        audioConfig: { audioEncoding: 'MP3' },
-      },
-      { headers: { 'Content-Type': 'application/json' } }
-    );
-    return res.data.audioContent || null;
+    console.log(`[TTS] Google ${useGemini ? `Gemini(${geminiModel})` : 'Neural2'} | ฿${amount} | voice:${voiceName}`);
+
+    try {
+      const res = await axios.post(
+        `https://texttospeech.googleapis.com/v1/text:synthesize?key=${cfg.googleTtsKey}`,
+        {
+          input: { text: inputText },
+          voice: voiceParams,
+          audioConfig: { audioEncoding: 'MP3' },
+        },
+        { headers: { 'Content-Type': 'application/json' } }
+      );
+      return res.data.audioContent || null;
+    } catch (e) {
+      const errDetail = e.response?.data?.error;
+      console.error('[TTS] Google error:', errDetail?.message || e.message, '| status:', e.response?.status);
+      throw e;
+    }
   }
 
   return null;
@@ -379,7 +399,7 @@ app.post('/api/donate', async (req, res) => {
   const ttsText = buildTtsText(cfg, donation);
   if (ttsText) {
     try {
-      audioBase64 = await generateTTS({ ...cfg, ttsProvider: resolvedProvider }, ttsText);
+      audioBase64 = await generateTTS({ ...cfg, ttsProvider: resolvedProvider }, ttsText, donation.amount);
     } catch (e) {
       console.error('TTS error:', e.response?.data || e.message);
     }
@@ -415,7 +435,7 @@ app.post('/api/test-alert', async (req, res) => {
   const ttsTextTest = buildTtsText(cfg, donation);
   if (ttsTextTest) {
     try {
-      audioBase64 = await generateTTS(cfg, ttsTextTest);
+      audioBase64 = await generateTTS(cfg, ttsTextTest, donation.amount);
     } catch (e) {
       console.error('TTS test error:', e.response?.data || e.message);
     }
@@ -444,7 +464,7 @@ app.post('/api/rerun/:id', async (req, res) => {
   let audioBase64 = null;
   const ttsText = buildTtsText(cfg, donation);
   if (ttsText) {
-    try { audioBase64 = await generateTTS(cfg, ttsText); }
+    try { audioBase64 = await generateTTS(cfg, ttsText, donation.amount); }
     catch(e) { console.error('Rerun TTS error:', e.message); }
   }
 
@@ -588,6 +608,26 @@ app.get('/api/google-voices', async (req, res) => {
   }
 });
 
+// POST /api/test-tts — generate TTS for a test phrase and return result or error message
+// Used by dashboard to diagnose TTS issues without firing an overlay alert
+app.post('/api/test-tts', async (req, res) => {
+  const cfg = loadConfig();
+  const { text = 'สวัสดีครับ [laughs] ขอบคุณมากเลยนะครับ', amount = 99 } = req.body;
+  try {
+    const audioBase64 = await generateTTS(cfg, text, Number(amount));
+    if (!audioBase64) {
+      return res.json({ ok: false, error: 'TTS ไม่ได้รับข้อมูลเสียงกลับมา — ตรวจสอบ API Key และการตั้งค่า' });
+    }
+    res.json({ ok: true, audioBase64, provider: cfg.ttsProvider });
+  } catch (e) {
+    const errDetail = e.response?.data?.error;
+    const msg = errDetail?.message || e.message || 'Unknown error';
+    const status = e.response?.status || 500;
+    console.error('[test-tts] Error:', msg);
+    res.json({ ok: false, error: `${msg} (HTTP ${status})`, detail: errDetail });
+  }
+});
+
 // ─── Bot Engine ─────────────────────────────────────────────────────────────
 
 let botTimer        = null;
@@ -644,7 +684,7 @@ async function fireBotDonation() {
   const botTtsText = buildTtsText(cfg, donation);
   if (botTtsText) {
     try {
-      audioBase64 = await generateTTS(cfg, botTtsText);
+      audioBase64 = await generateTTS(cfg, botTtsText, donation.amount);
     } catch (e) { console.error('Bot TTS error:', e.message); }
   }
 
