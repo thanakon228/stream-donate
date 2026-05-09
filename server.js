@@ -214,10 +214,16 @@ function saveDonation(d) {
 
 // ─── TTS Helper ─────────────────────────────────────────────────────────────
 
+// Strip [action] stage-direction tags — used for providers that don't support them
+function stripActionTags(text) {
+  return text.replace(/\[[^\]]*\]/g, '').replace(/\s{2,}/g, ' ').trim();
+}
+
 async function generateTTS(cfg, text) {
   const provider = cfg.ttsProvider || 'elevenlabs';
 
   // ── ElevenLabs ──
+  // eleven_multilingual_v2+ supports [laughs] [sighs] [gasps] etc. natively — pass text as-is
   if (provider === 'elevenlabs') {
     if (!cfg.elevenLabsKey) return null;
     const res = await axios.post(
@@ -240,12 +246,13 @@ async function generateTTS(cfg, text) {
   }
 
   // ── Google TTS ──
+  // Google doesn't understand [laughs] etc. — strip action tags first
   if (provider === 'google') {
     if (!cfg.googleTtsKey) return null;
     const res = await axios.post(
       `https://texttospeech.googleapis.com/v1/text:synthesize?key=${cfg.googleTtsKey}`,
       {
-        input: { text },
+        input: { text: stripActionTags(text) },
         voice: {
           languageCode: cfg.googleLang || 'th-TH',
           name: cfg.googleVoice || 'th-TH-Neural2-C',
