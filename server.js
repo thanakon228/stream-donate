@@ -416,7 +416,7 @@ app.post('/api/donate', async (req, res) => {
 // POST test alert
 app.post('/api/test-alert', async (req, res) => {
   const cfg = loadConfig();
-  const { emotion = 'excited', name, amount, message, ttsOnly = false, forceAnimation } = req.body;
+  const { emotion = 'excited', name, amount, message, ttsOnly = false, forceAnimation, epicStyle, forceEpic = false } = req.body;
 
   const donation = {
     id: Date.now(),
@@ -427,7 +427,9 @@ app.post('/api/test-alert', async (req, res) => {
     currency: cfg.currency,
     ttsProvider: cfg.ttsProvider,
     timestamp: new Date().toISOString(),
-    isTest: true,
+    isTest:    true,
+    epicStyle: epicStyle || null,
+    forceEpic: !!forceEpic,
   };
 
   let audioBase64 = null;
@@ -644,6 +646,9 @@ async function fireBotDonation() {
   const maxAmt = Number(bot.maxAmount) || 99;
   const amount = Math.floor(Math.random() * (maxAmt - minAmt + 1)) + minAmt;
 
+  const epicCfg     = cfg.epicAlert || {};
+  const shouldEpic  = epicCfg.enabled && amount >= (Number(epicCfg.minAmount) || 50);
+
   const donation = {
     id:          Date.now(),
     name:        bot.botName || '🤖 DonateBot',
@@ -654,6 +659,7 @@ async function fireBotDonation() {
     ttsProvider: cfg.ttsProvider,
     timestamp:   new Date().toISOString(),
     isBot:       true,
+    epicStyle:   shouldEpic ? (epicCfg.style || 'random') : null,
   };
 
   let audioBase64 = null;

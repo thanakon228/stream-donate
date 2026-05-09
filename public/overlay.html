@@ -755,7 +755,7 @@
 
   async function showAlert(donation) {
     const amount = Number(donation.amount) || 0;
-    if (epicAlertConfig.enabled && amount >= epicAlertConfig.minAmount) {
+    if (donation.forceEpic || (epicAlertConfig.enabled && amount >= epicAlertConfig.minAmount)) {
       return showEpicAlert(donation);
     }
     return new Promise(async (resolve) => {
