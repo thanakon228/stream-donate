@@ -109,6 +109,12 @@ const DEFAULTS = {
   },
   // ── Lock Amount ──
   lockAmount: false,
+  // ── Epic Alerts ──
+  epicAlert: {
+    enabled:   false,
+    minAmount: 50,
+    style:     'random',  // 'random' | '1'-'5'
+  },
 };
 
 
@@ -357,7 +363,7 @@ app.get('/api/donations', (req, res) => res.json(loadDonations()));
 // POST new donation
 app.post('/api/donate', async (req, res) => {
   const cfg = loadConfig();
-  const { name, amount, message, emotion = 'neutral', ttsProvider: donorProvider, slipRef } = req.body;
+  const { name, amount, message, emotion = 'neutral', ttsProvider: donorProvider, slipRef, epicStyle } = req.body;
 
   if (!name || !amount) return res.status(400).json({ error: 'Name and amount required' });
   if (Number(amount) < cfg.minDonate) {
@@ -384,6 +390,7 @@ app.post('/api/donate', async (req, res) => {
     currency: cfg.currency,
     ttsProvider: resolvedProvider,
     slipRef: slipRef || null,
+    epicStyle: epicStyle || null,
     timestamp: new Date().toISOString(),
   };
 
