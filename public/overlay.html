@@ -536,6 +536,43 @@
     truemoney: { icon:'💚' },
   };
 
+  // ── Audio helpers ────────────────────────────────────────
+  // Loads audio src and waits for metadata (with 5s timeout fallback).
+  // Calls onDuration(ms) once duration is known.
+  function loadAudio(audioEl, src, onDuration) {
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        console.warn('[TTS] onloadedmetadata timeout — proceeding without duration');
+        resolve();
+      }, 5000);
+
+      audioEl.onloadedmetadata = () => {
+        clearTimeout(timer);
+        if (onDuration) onDuration(audioEl.duration * 1000);
+        resolve();
+      };
+      audioEl.onerror = (e) => {
+        clearTimeout(timer);
+        console.warn('[TTS] Audio element error:', e?.message || e);
+        resolve();  // resolve so the alert still shows
+      };
+      audioEl.src = src;
+      audioEl.load();
+    });
+  }
+
+  // Plays audio and logs any error (e.g. autoplay blocked, OBS policy).
+  function playAudio(audioEl) {
+    const p = audioEl.play();
+    if (p && typeof p.catch === 'function') {
+      p.catch(e => {
+        console.warn('[TTS] audio.play() failed:', e.name, '—', e.message);
+        // NotAllowedError = autoplay blocked by browser/OBS policy
+        // In OBS: Properties → check "Control audio via OBS" or use Interact mode
+      });
+    }
+  }
+
   // ── Epic Alert HTML generators ────────────────────────────
   function epicHtml1(s){return`<div class="mt-wrap"><div class="mt-impact"></div><div class="mt-impact2"></div><div class="mt-box"><div class="mt-icon">☄️</div><div class="mt-label">💥 DONATION IMPACT</div><div class="mt-row"><div class="mt-name">${s.n}</div><div class="mt-vs">DONATED</div></div><div class="mt-amt">${s.a}</div>${s.m?`<div class="mt-msg">${s.m}</div>`:''}</div></div>`}
   function epicHtml2(s){return`<div class="lg-wrap"><div class="lg-flash"></div><div class="lg-box"><div class="lg-bolt-top"></div><div class="lg-bolt-bot"></div><div class="lg-bolt-l"></div><div class="lg-bolt-r"></div><div class="lg-bg-glow"></div><div class="lg-content"><div class="lg-icon">⚡</div><div class="lg-text"><div class="lg-label">⚡ LIGHTNING DONATION</div><div class="lg-name">${s.n}</div><div class="lg-amt">${s.a}</div>${s.m?`<div class="lg-msg">${s.m}</div>`:''}</div></div></div></div>`}
@@ -608,9 +645,11 @@
       const audio = document.getElementById('ttsAudio');
       let audioDuration = 0;
       if (donation.audioBase64) {
-        audio.src = 'data:audio/mpeg;base64,' + donation.audioBase64;
-        await new Promise(r => { audio.onloadedmetadata = () => { audioDuration = audio.duration * 1000; r(); }; audio.onerror = r; audio.load(); });
-        audio.play().catch(() => {});
+        await loadAudio(audio, 'data:audio/mpeg;base64,' + donation.audioBase64,
+          (dur) => { audioDuration = dur; });
+        playAudio(audio);
+      } else {
+        console.warn('[TTS] No audioBase64 received — TTS may not be configured or failed');
       }
 
       // Epic CSS exit animation fires at 4.8s; total = max(5200, audio+1000)
@@ -775,15 +814,13 @@
       let   audioDuration = 0;
 
       if (donation.audioBase64) {
-        audio.src = 'data:audio/mpeg;base64,' + donation.audioBase64;
-        await new Promise(r => {
-          audio.onloadedmetadata = () => { audioDuration = audio.duration * 1000; r(); };
-          audio.onerror = r;
-          audio.load();
-        });
+        await loadAudio(audio, 'data:audio/mpeg;base64,' + donation.audioBase64,
+          (dur) => { audioDuration = dur; });
         speakingEl.classList.add('active');
-        audio.play().catch(() => {});
         audio.onended = () => speakingEl.classList.remove('active');
+        playAudio(audio);
+      } else {
+        console.warn('[TTS] No audioBase64 received — TTS may not be configured or failed');
       }
 
       const totalDuration = Math.max(alertDuration, audioDuration + 1000);
