@@ -1449,23 +1449,31 @@
     const input = document.createElement('input');
     input.type   = 'file';
     input.accept = '.json,application/json';
+    input.style.display = 'none';
+    document.body.appendChild(input);
     input.onchange = async e => {
       const file = e.target.files[0];
+      document.body.removeChild(input);
       if (!file) return;
       try {
         const text = await file.text();
         const data = JSON.parse(text);
-        await fetch('/api/config', {
+        const r = await fetch('/api/config', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(data),
         });
+        if (!r.ok) throw new Error('Server returned ' + r.status);
         showToast('✅ Import สำเร็จ! โหลดการตั้งค่าใหม่...');
         setTimeout(loadConfig, 600);
       } catch (err) {
-        showToast('❌ ไฟล์ JSON ไม่ถูกต้อง: ' + err.message, true);
+        showToast('❌ Import ล้มเหลว: ' + err.message, true);
       }
     };
+    // Remove if user cancels without picking a file
+    input.addEventListener('cancel', () => {
+      if (input.parentNode) document.body.removeChild(input);
+    });
     input.click();
   }
 
