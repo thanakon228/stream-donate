@@ -1026,19 +1026,23 @@
 
       <!-- Railway Raw Config -->
       <div style="margin-top:20px;padding:16px;background:rgba(59,130,246,.07);border:1px solid rgba(59,130,246,.2);border-radius:12px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;flex-wrap:wrap">
           <div style="font-size:13px;font-weight:700;color:#60a5fa">🚀 Railway Raw Config — บันทึกการตั้งค่าทั้งหมดถาวร</div>
-          <button class="btn btn-primary" style="padding:6px 14px;font-size:12px" onclick="copyRailwayRaw()">📋 Copy Raw</button>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-outline btn-sm" onclick="resetToEnvConfig()" title="ล้าง config.json แล้วโหลดใหม่จาก CONFIG env var">🔄 โหลดจาก ENV</button>
+            <button class="btn btn-primary" style="padding:6px 14px;font-size:12px" onclick="copyRailwayRaw()">📋 Copy Raw</button>
+          </div>
         </div>
         <p style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.8">
-          คลิก <strong style="color:var(--text)">Copy Raw</strong> → ไปที่ Railway → Project → <strong style="color:#60a5fa">Variables → Raw Editor</strong> → วางแทนที่ทั้งหมด<br>
+          คลิก <strong style="color:var(--text)">Copy Raw</strong> → ไปที่ Railway → Project → <strong style="color:#60a5fa">Variables → Raw Editor</strong> → วางแทนที่ทั้งหมด → <strong style="color:var(--text)">กลับมากด "🔄 โหลดจาก ENV"</strong> เพื่อให้มีผลทันที<br>
           การตั้งค่าทุกอย่าง (บัญชี, สลิป, bot ฯลฯ) จะ<strong style="color:#60a5fa"> ไม่หาย</strong>แม้ redeploy
         </p>
         <textarea id="railway-raw-box" readonly
           style="width:100%;height:120px;background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-family:monospace;font-size:11px;color:var(--text);resize:vertical;box-sizing:border-box;line-height:1.6"
           placeholder="กำลังโหลด..."></textarea>
         <p style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.6">
-          💡 ตัวแปร <code style="background:rgba(255,255,255,.08);padding:1px 6px;border-radius:4px">CONFIG</code> เก็บ config ทั้งหมดเป็น JSON · individual vars (ELEVENLABS_API_KEY ฯลฯ) จะ override CONFIG เสมอ
+          💡 ตัวแปร <code style="background:rgba(255,255,255,.08);padding:1px 6px;border-radius:4px">CONFIG</code> เก็บ config ทั้งหมดเป็น JSON · individual vars (ELEVENLABS_API_KEY ฯลฯ) จะ override CONFIG เสมอ<br>
+          ⚠️ ปุ่ม <strong>"🔄 โหลดจาก ENV"</strong> จะล้างการตั้งค่าในเซสชั่นนี้และโหลด CONFIG env var ใหม่ทั้งหมด
         </p>
       </div>
 
@@ -1516,6 +1520,23 @@
   }
 
   // ── Railway Raw Config ─────────────────────────────────────
+  async function resetToEnvConfig() {
+    if (!confirm('⚠️ การตั้งค่าในเซสชั่นนี้จะถูกล้าง และโหลดใหม่จาก CONFIG env var\n\nแน่ใจหรือไม่?')) return;
+    try {
+      const r = await fetch('/api/config/reset', { method: 'POST' });
+      const d = await r.json();
+      if (d.ok) {
+        showToast('✅ โหลดจาก CONFIG env var แล้ว — รีเฟรชการตั้งค่า...');
+        await loadRailwayRawBox();
+        setTimeout(loadConfig, 800);
+      } else {
+        showToast('❌ ' + (d.error || 'ไม่สามารถรีเซ็ตได้'), true);
+      }
+    } catch(e) {
+      showToast('❌ ข้อผิดพลาด: ' + e.message, true);
+    }
+  }
+
   async function loadRailwayRawBox() {
     const box = document.getElementById('railway-raw-box');
     if (!box) return;

@@ -29,8 +29,13 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('/', (req, res) => res.redirect('/donate.html'));
 
-const CONFIG_FILE = path.join(__dirname, 'config.json');
+const CONFIG_FILE    = path.join(__dirname, 'config.json');
 const DONATIONS_FILE = path.join(__dirname, 'donations.json');
+
+// ── In-memory set of recently-verified slip refs ──────────────────────────────
+// Prevents the same slip being verified twice in the gap before a donation is saved
+const recentlyVerifiedRefs = new Map();   // transRef → verifiedAt (ms)
+const SLIP_LOCK_MS = 60 * 60 * 1000;     // 1 hour lock window
 
 const DEFAULTS = {
   theme: 'purple-galaxy',
@@ -422,9 +427,32 @@ app.get('/api/config/full', (req, res) => {
   res.json({ ...loadConfig(), _envFlags: getEnvFlags() });
 });
 
+// POST /api/config/reset — wipe config.json and reload from CONFIG env var
+// Use this when you've updated CONFIG in Railway Variables and want it applied NOW
+// without waiting for a fresh redeploy
+app.post('/api/config/reset', (req, res) => {
+  try {
+    if (fs.existsSync(CONFIG_FILE)) fs.unlinkSync(CONFIG_FILE);
+    const cfg = loadConfig();   // recreates config.json from CONFIG env var + DEFAULTS
+    res.json({ ok: true, message: 'config.json ถูกรีเซ็ตและโหลดจาก CONFIG env var แล้ว', cfg: { theme: cfg.theme, ttsProvider: cfg.ttsProvider } });
+  } catch(e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 app.post('/api/config', (req, res) => {
   const current = loadConfig();
-  let updated = { ...current, ...req.body };
+  const body    = { ...req.body };
+
+  // Never overwrite secret API keys with the masked '***hidden***' placeholder
+  // (Dashboard sends this back when the key came from an env var and was never shown)
+  const SECRET_FIELDS = ['elevenLabsKey', 'googleTtsKey', 'geminiApiKey', 'easySlipKey'];
+  for (const field of SECRET_FIELDS) {
+    if (body[field] === '***hidden***') body[field] = current[field];
+    // Empty string means "clear the key" — keep that behaviour
+  }
+
+  let updated = { ...current, ...body };
   // Deep-merge bot sub-object so partial saves don't wipe messages
   if (req.body.bot !== undefined) {
     updated.bot = { ...(current.bot || {}), ...req.body.bot };
@@ -644,6 +672,26 @@ app.post('/api/verify-slip', (req, res, next) => {
       const senderBank   = slip.sender?.bank?.name || slip.sender?.bank?.short || '';
       const receiverBank = slip.receiver?.bank?.name || slip.receiver?.bank?.short || '';
       const date         = slip.date || slip.transactionDate || '';
+
+      // ── Duplicate slip check ──────────────────────────────────────────────
+      if (transRef) {
+        // 1. Check in-memory lock (prevents same slip being verified twice in quick succession)
+        const now = Date.now();
+        // Clean up expired locks
+        for (const [ref, ts] of recentlyVerifiedRefs) {
+          if (now - ts > SLIP_LOCK_MS) recentlyVerifiedRefs.delete(ref);
+        }
+        if (recentlyVerifiedRefs.has(transRef)) {
+          return res.status(400).json({ error: `❌ สลิปนี้ถูกใช้ไปแล้ว (ref: ${transRef}) — กรุณาใช้สลิปใหม่` });
+        }
+        // 2. Check saved donations (persisted history)
+        const pastDonations = loadDonations();
+        if (pastDonations.some(d => d.slipRef === transRef)) {
+          return res.status(400).json({ error: `❌ สลิปนี้ถูกใช้งานไปแล้ว — ไม่สามารถใช้ซ้ำได้ (ref: ${transRef})` });
+        }
+        // Lock this ref so it can't be verified again within the hour
+        recentlyVerifiedRefs.set(transRef, now);
+      }
 
       console.log(`✅ Slip verified: ฿${amount} from ${senderName} (ref: ${transRef})`);
 
