@@ -440,6 +440,54 @@ app.post('/api/config/reset', (req, res) => {
   }
 });
 
+// POST /api/config/import — full replace from an exported JSON file
+// Unlike /api/config (partial merge), this starts from DEFAULTS then overlays the imported data.
+// API keys present in the file are accepted; missing keys fall back to the current saved value
+// so you never accidentally wipe a key just because the export was done on a machine that masked it.
+app.post('/api/config/import', (req, res) => {
+  try {
+    const current = loadConfig();
+    const body    = { ...req.body };
+
+    // Strip internal metadata fields added by the exporter
+    delete body._exportedAt;
+    delete body._version;
+
+    // Protect secret fields — if the imported file has '***hidden***' keep what we have now
+    const SECRET_FIELDS = ['elevenLabsKey', 'googleTtsKey', 'geminiApiKey', 'easySlipKey'];
+    for (const field of SECRET_FIELDS) {
+      if (!body[field] || body[field] === '***hidden***') body[field] = current[field];
+    }
+
+    // Start from DEFAULTS so any schema additions in new versions are filled in
+    let updated = { ...DEFAULTS, ...body };
+
+    // Deep-merge sub-objects
+    updated.bot = { ...(DEFAULTS.bot || {}), ...(body.bot || {}) };
+    if (body.bot?.messages !== undefined) updated.bot.messages = body.bot.messages;
+
+    updated.slipVerify = {
+      ...(DEFAULTS.slipVerify || {}),
+      ...(body.slipVerify || {}),
+    };
+
+    updated.paymentAccounts = {
+      ...(DEFAULTS.paymentAccounts || {}),
+      ...(body.paymentAccounts || {}),
+      accounts: body.paymentAccounts?.accounts ?? DEFAULTS.paymentAccounts?.accounts ?? [],
+    };
+
+    saveConfig(updated);
+
+    // Apply bot state immediately
+    updated.bot?.enabled ? startBot(updated.bot) : stopBot();
+
+    res.json({ ok: true, message: 'Import สำเร็จ' });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 app.post('/api/config', (req, res) => {
   const current = loadConfig();
   const body    = { ...req.body };

@@ -1570,15 +1570,24 @@
       .then(r => r.json())
       .then(data => {
         const { _envFlags, ...cleanCfg } = data;
+
+        // Embed export timestamp and schema version for reference
+        cleanCfg._exportedAt = new Date().toISOString();
+        cleanCfg._version    = 1;
+
         const blob = new Blob([JSON.stringify(cleanCfg, null, 2)], { type: 'application/json' });
         const url  = URL.createObjectURL(blob);
         const a    = document.createElement('a');
         a.href     = url;
-        a.download = 'stream-donate-config.json';
+
+        // Timestamped filename: stream-donate-config-2026-05-09.json
+        const dateStr  = new Date().toISOString().slice(0, 10);
+        a.download = `stream-donate-config-${dateStr}.json`;
         a.click();
         URL.revokeObjectURL(url);
         showToast('✅ Export สำเร็จ!');
-      });
+      })
+      .catch(err => showToast('❌ Export ล้มเหลว: ' + err.message, true));
   }
 
   function importConfig() {
@@ -1587,25 +1596,64 @@
     input.accept = '.json,application/json';
     input.style.display = 'none';
     document.body.appendChild(input);
+
     input.onchange = async e => {
       const file = e.target.files[0];
       document.body.removeChild(input);
       if (!file) return;
+
+      let data;
       try {
         const text = await file.text();
-        const data = JSON.parse(text);
-        const r = await fetch('/api/config', {
-          method: 'POST',
+        data = JSON.parse(text);
+      } catch {
+        showToast('❌ ไฟล์ JSON ไม่ถูกต้อง', true);
+        return;
+      }
+
+      // Build a short preview of key settings to show in the confirmation dialog
+      const lines = [];
+      if (data.streamTitle)   lines.push(`• ชื่อสตรีม: ${data.streamTitle}`);
+      if (data.ttsProvider)   lines.push(`• TTS: ${data.ttsProvider}`);
+      if (data.theme)         lines.push(`• ธีม: ${data.theme}`);
+      if (data.minDonate)     lines.push(`• ขั้นต่ำ: ${data.minDonate} ${data.currency || 'THB'}`);
+      if (data._exportedAt)   lines.push(`• Export เมื่อ: ${new Date(data._exportedAt).toLocaleString('th-TH')}`);
+
+      // Warn about API keys that are present / missing in the file
+      const keyLabels = {
+        elevenLabsKey: 'ElevenLabs Key',
+        googleTtsKey:  'Google TTS Key',
+        geminiApiKey:  'Gemini API Key',
+        easySlipKey:   'EasySlip Key',
+      };
+      const keyPresent  = [], keyMissing = [];
+      for (const [field, label] of Object.entries(keyLabels)) {
+        (data[field] && data[field] !== '***hidden***' ? keyPresent : keyMissing).push(label);
+      }
+      if (keyPresent.length)  lines.push(`• API Keys ในไฟล์: ${keyPresent.join(', ')}`);
+      if (keyMissing.length)  lines.push(`• Keys ที่หาย (จะใช้ค่าเดิม): ${keyMissing.join(', ')}`);
+
+      const preview  = lines.length ? '\n\n' + lines.join('\n') : '';
+      const confirmed = confirm(
+        `⚠️ Import จะเขียนทับการตั้งค่าปัจจุบันทั้งหมด${preview}\n\nต้องการดำเนินการต่อไหม?`
+      );
+      if (!confirmed) return;
+
+      try {
+        const r = await fetch('/api/config/import', {
+          method:  'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data),
+          body:    JSON.stringify(data),
         });
-        if (!r.ok) throw new Error('Server returned ' + r.status);
+        const result = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(result.error || 'Server returned ' + r.status);
         showToast('✅ Import สำเร็จ! โหลดการตั้งค่าใหม่...');
-        setTimeout(loadConfig, 600);
+        loadConfig();
       } catch (err) {
         showToast('❌ Import ล้มเหลว: ' + err.message, true);
       }
     };
+
     // Remove if user cancels without picking a file
     input.addEventListener('cancel', () => {
       if (input.parentNode) document.body.removeChild(input);
