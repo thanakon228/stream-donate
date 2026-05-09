@@ -182,22 +182,6 @@
     background:var(--primary); border-color:var(--primary); color:white;
   }
 
-  .emotion-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
-
-  .emotion-btn {
-    background:var(--card2); border:2px solid var(--border); border-radius:12px;
-    color:var(--muted); cursor:pointer; font-family:'Kanit',sans-serif;
-    font-size:13px; padding:10px 8px; text-align:center; transition:all .2s;
-    display:flex; flex-direction:column; align-items:center; gap:4px;
-  }
-  .emotion-btn .emoji { font-size:22px; }
-  .emotion-btn:hover { border-color:var(--primary-light); color:var(--primary-light); }
-  .emotion-btn.selected {
-    background:var(--selected-bg);
-    border-color:var(--primary-light);
-    color:var(--primary-light);
-  }
-
   /* ── TTS Provider Selector ── */
   .tts-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
 
@@ -559,37 +543,14 @@
     </div>
   </div>
 
-  <!-- Message & emotion -->
+  <!-- Message -->
   <div class="card">
-    <div class="section-title">ข้อความ & อารมณ์</div>
+    <div class="section-title">ข้อความ</div>
     <div class="input-group">
       <label>ข้อความ (จะถูกอ่านออกเสียง)</label>
       <textarea id="donateMessage" placeholder="พิมพ์ข้อความที่ต้องการให้อ่าน..." maxlength="300"
         oninput="updateCharCount()"></textarea>
       <div class="char-count"><span id="charCount">0</span>/300</div>
-    </div>
-    <div class="input-group">
-      <label>เลือกอารมณ์ในการอ่าน</label>
-      <div class="emotion-grid">
-        <button class="emotion-btn selected" data-emotion="neutral" onclick="selectEmotion(this)">
-          <span class="emoji">😐</span>ปกติ
-        </button>
-        <button class="emotion-btn" data-emotion="happy" onclick="selectEmotion(this)">
-          <span class="emoji">😊</span>มีความสุข
-        </button>
-        <button class="emotion-btn" data-emotion="excited" onclick="selectEmotion(this)">
-          <span class="emoji">🤩</span>ตื่นเต้น
-        </button>
-        <button class="emotion-btn" data-emotion="sad" onclick="selectEmotion(this)">
-          <span class="emoji">😢</span>เศร้า
-        </button>
-        <button class="emotion-btn" data-emotion="angry" onclick="selectEmotion(this)">
-          <span class="emoji">😠</span>โกรธ
-        </button>
-        <button class="emotion-btn" data-emotion="whispering" onclick="selectEmotion(this)">
-          <span class="emoji">🤫</span>กระซิบ
-        </button>
-      </div>
     </div>
   </div>
 
@@ -655,7 +616,6 @@
 
 <script>
   // ── State ────────────────────────────────────────────────────
-  let selectedEmotion     = 'neutral';
   let selectedTtsProvider = null;
   let cfgMinDonate        = 20;
   let cfgCurrency         = 'THB';
@@ -875,11 +835,6 @@
     selectedEpicStyle = el.dataset.style;
   }
 
-  function selectEmotion(el) {
-    document.querySelectorAll('.emotion-btn').forEach(b => b.classList.remove('selected'));
-    el.classList.add('selected');
-    selectedEmotion = el.dataset.emotion;
-  }
   function selectTts(el, silent = false) {
     document.querySelectorAll('.tts-btn').forEach(b => b.classList.remove('selected'));
     el.classList.add('selected');
@@ -1012,7 +967,7 @@
 
     btn.disabled = true; btn.classList.add('loading');
     try {
-      const body = { name, amount: Number(amount), message, emotion: selectedEmotion };
+      const body = { name, amount: Number(amount), message };
       if (bothProvidersAvail && selectedTtsProvider) body.ttsProvider = selectedTtsProvider;
       if (slipVerified && slipTransRef)              body.slipRef     = slipTransRef;
       // Pass chosen epic style only when the picker was visible
@@ -1034,7 +989,6 @@
       document.getElementById('amountLockBadge').classList.remove('show');
       document.getElementById('donateMessage').value = '';
       updateCharCount(); syncQuickBtns(0);
-      selectEmotion(document.querySelector('[data-emotion="neutral"]'));
       // Reset epic picker
       selectedEpicStyle = 'random';
       document.querySelectorAll('.epic-btn').forEach(b => b.classList.remove('selected'));

@@ -188,13 +188,6 @@
   .alert-box.exit-shrink { animation: anim-exitShrink .38s ease-in forwards; }
   .alert-box.exit-swing  { animation: anim-exitSwing  .38s ease-in forwards; }
 
-  /* emotion glow overrides */
-  .alert-box[data-emotion="happy"]     { box-shadow:0 20px 60px rgba(0,0,0,.6),0 0 30px rgba(251,191,36,.35),0 0 0 2px rgba(251,191,36,.5); }
-  .alert-box[data-emotion="excited"]   { box-shadow:0 20px 60px rgba(0,0,0,.6),0 0 40px rgba(239,68,68,.35),0 0 0 2px rgba(239,68,68,.6); }
-  .alert-box[data-emotion="sad"]       { box-shadow:0 20px 60px rgba(0,0,0,.6),0 0 30px rgba(59,130,246,.35),0 0 0 2px rgba(59,130,246,.5); }
-  .alert-box[data-emotion="angry"]     { box-shadow:0 20px 60px rgba(0,0,0,.6),0 0 40px rgba(220,38,38,.4), 0 0 0 2px rgba(220,38,38,.7); }
-  .alert-box[data-emotion="whispering"]{ box-shadow:0 20px 60px rgba(0,0,0,.6),0 0 20px var(--t-neutral-glow),0 0 0 2px var(--t-neutral-glow); }
-  .alert-box[data-emotion="neutral"]   { box-shadow:0 20px 60px rgba(0,0,0,.6),0 0 30px var(--t-neutral-glow),0 0 0 2px var(--t-neutral-glow); }
 
   /* accent bar */
   .alert-accent {
@@ -205,14 +198,9 @@
   }
   @keyframes shimmer { to{background-position:200% 0} }
 
-  .alert-box[data-emotion="happy"]     .alert-accent { background:linear-gradient(90deg,#f59e0b,#fcd34d,#f59e0b);background-size:200% 100%; }
-  .alert-box[data-emotion="excited"]   .alert-accent { background:linear-gradient(90deg,#ef4444,#f97316,#ef4444);background-size:200% 100%; }
-  .alert-box[data-emotion="sad"]       .alert-accent { background:linear-gradient(90deg,#3b82f6,#818cf8,#3b82f6);background-size:200% 100%; }
-  .alert-box[data-emotion="angry"]     .alert-accent { background:linear-gradient(90deg,#dc2626,#b91c1c,#dc2626);background-size:200% 100%; }
-
   .alert-body { padding:18px 22px 20px; display:flex; gap:16px; align-items:flex-start; }
 
-  .emotion-icon { font-size:44px; line-height:1; flex-shrink:0; animation:iconBounce .6s ease .4s both; }
+  .alert-icon { font-size:44px; line-height:1; flex-shrink:0; animation:iconBounce .6s ease .4s both; }
   @keyframes iconBounce { 0%,100%{transform:scale(1)} 50%{transform:scale(1.3) rotate(-10deg)} }
 
   .alert-content { flex:1; min-width:0; }
@@ -231,11 +219,6 @@
     box-shadow: 0 4px 12px rgba(0,0,0,.3); white-space:nowrap;
   }
 
-  .alert-box[data-emotion="happy"]     .amount-badge { background:linear-gradient(135deg,#d97706,#f59e0b); }
-  .alert-box[data-emotion="excited"]   .amount-badge { background:linear-gradient(135deg,#dc2626,#f97316); }
-  .alert-box[data-emotion="sad"]       .amount-badge { background:linear-gradient(135deg,#1d4ed8,#3b82f6); }
-  .alert-box[data-emotion="angry"]     .amount-badge { background:linear-gradient(135deg,#991b1b,#dc2626); }
-
   /* TTS provider pill */
   .tts-pill {
     margin-left:auto;
@@ -251,12 +234,6 @@
     background:var(--t-msg-bg); border-left:3px solid var(--t-msg-border);
     border-radius:0 8px 8px 0; padding:8px 12px; margin-top:8px;
   }
-  .alert-box[data-emotion="happy"]     .alert-message { border-left-color:rgba(245,158,11,.6);color:#fde68a;background:rgba(245,158,11,.08); }
-  .alert-box[data-emotion="excited"]   .alert-message { border-left-color:rgba(239,68,68,.6);color:#fca5a5;background:rgba(239,68,68,.08); }
-  .alert-box[data-emotion="sad"]       .alert-message { border-left-color:rgba(59,130,246,.6);color:#93c5fd;background:rgba(59,130,246,.08); }
-  .alert-box[data-emotion="angry"]     .alert-message { border-left-color:rgba(220,38,38,.7);color:#fca5a5;background:rgba(220,38,38,.1); }
-  .alert-box[data-emotion="whispering"].alert-message { font-style:italic;opacity:.85; }
-
   /* ── Payment channels footer in alert ── */
   .alert-payment {
     padding: 8px 20px 14px;
@@ -445,7 +422,7 @@
     <div class="alert-accent"></div>
     <div class="particles" id="particles"></div>
     <div class="alert-body">
-      <div class="emotion-icon" id="alertIcon">🎁</div>
+      <div class="alert-icon" id="alertIcon">🎁</div>
       <div class="alert-content">
         <div class="alert-header">
           <span class="donor-name" id="alertName">ชื่อผู้บริจาค</span>
@@ -477,15 +454,6 @@
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
-  const EMOTIONS = {
-    neutral:    { icon:'🎁' },
-    happy:      { icon:'🎉' },
-    excited:    { icon:'🔥' },
-    sad:        { icon:'💙' },
-    angry:      { icon:'💢' },
-    whispering: { icon:'🤫' },
-  };
-
   // ── Animation pairs [enterClass, exitClass, label] ────────
   const ANIM_PAIRS = [
     ['enter-slideUp',  'exit-down',   '⬆️ Slide Up'],
@@ -511,15 +479,6 @@
     'sunset-vibe':   ['#f43f5e','#fb923c','#fda4af'],
     'monochrome':    ['#e5e5e5','#a3a3a3','#737373'],
     'royal-purple':  ['#c084fc','#e879f9','#d8b4fe'],
-  };
-
-  const EMOTION_PARTICLES = {
-    happy:      ['#fcd34d','#fbbf24','#f59e0b'],
-    excited:    ['#f97316','#ef4444','#fbbf24'],
-    sad:        ['#93c5fd','#60a5fa','#818cf8'],
-    angry:      ['#ef4444','#dc2626','#f97316'],
-    whispering: ['#c4b5fd','#a78bfa','#818cf8'],
-    neutral:    null,
   };
 
   let currentTheme     = 'purple-galaxy';
@@ -732,9 +691,8 @@
     return ANIM_PAIRS[idx];
   }
 
-  function spawnParticles(emotion) {
-    const themePalette = THEME_PARTICLES[currentTheme] || THEME_PARTICLES['purple-galaxy'];
-    const palette = EMOTION_PARTICLES[emotion] || themePalette;
+  function spawnParticles() {
+    const palette = THEME_PARTICLES[currentTheme] || THEME_PARTICLES['purple-galaxy'];
     const container = document.getElementById('particles');
     container.innerHTML = '';
     for (let i = 0; i < 16; i++) {
@@ -759,9 +717,7 @@
       return showEpicAlert(donation);
     }
     return new Promise(async (resolve) => {
-      const box     = document.getElementById('alertBox');
-      const emotion = donation.emotion || 'neutral';
-      const eData   = EMOTIONS[emotion] || EMOTIONS.neutral;
+      const box = document.getElementById('alertBox');
 
       // ── Fill content ──────────────────────────────────────
       document.getElementById('alertName').textContent = donation.name;
@@ -782,8 +738,7 @@
         payEl.style.display = 'none';
       }
 
-      document.getElementById('alertIcon').textContent = eData.icon;
-      box.dataset.emotion = emotion;
+      document.getElementById('alertIcon').textContent = '🎁';
 
       // TTS pill
       const pill = document.getElementById('alertTtsPill');
@@ -797,11 +752,10 @@
       // ── Pick & apply animation ────────────────────────────
       // Remove all previous anim classes
       box.className = 'alert-box';
-      box.dataset.emotion = emotion;
 
       const [enterClass, exitClass, animLabel] = pickAnimation();
 
-      spawnParticles(emotion);
+      spawnParticles();
 
       // Force reflow before adding animation class
       void box.offsetWidth;

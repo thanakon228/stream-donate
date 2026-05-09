@@ -42,25 +42,9 @@ const DEFAULTS = {
   elevenLabsKey: '',
   voiceId: 'EXAVITQu4vr4xnSDxMaL',
   modelId: 'eleven_multilingual_v2',
-  emotions: {
-    happy:      { stability: 0.25, similarity_boost: 0.85, style: 0.75, use_speaker_boost: true },
-    sad:        { stability: 0.75, similarity_boost: 0.45, style: 0.4,  use_speaker_boost: false },
-    excited:    { stability: 0.05, similarity_boost: 0.95, style: 1.0,  use_speaker_boost: true },
-    angry:      { stability: 0.1,  similarity_boost: 0.8,  style: 0.9,  use_speaker_boost: true },
-    neutral:    { stability: 0.5,  similarity_boost: 0.75, style: 0.0,  use_speaker_boost: true },
-    whispering: { stability: 0.95, similarity_boost: 0.35, style: 0.05, use_speaker_boost: false },
-  },
   googleTtsKey: '',
   googleVoice: 'th-TH-Neural2-C',
   googleLang: 'th-TH',
-  googleEmotions: {
-    neutral:    { speakingRate: 1.0,  pitch: 0,   volumeGainDb: 0  },
-    happy:      { speakingRate: 1.1,  pitch: 3,   volumeGainDb: 1  },
-    excited:    { speakingRate: 1.35, pitch: 5,   volumeGainDb: 3  },
-    sad:        { speakingRate: 0.85, pitch: -3,  volumeGainDb: -2 },
-    angry:      { speakingRate: 1.2,  pitch: -2,  volumeGainDb: 4  },
-    whispering: { speakingRate: 0.8,  pitch: -4,  volumeGainDb: -6 },
-  },
   bot: {
     enabled: false,
     intervalMinutes: 5,
@@ -68,14 +52,14 @@ const DEFAULTS = {
     minAmount: 20,
     maxAmount: 99,
     messages: [
-      { id:1, text:'วันนี้สตรีมถึงกี่โมงครับ?',               emotion:'neutral'  },
-      { id:2, text:'ชื่นชอบเกมนี้ยังไงบ้างครับ?',               emotion:'happy'    },
-      { id:3, text:'เล่นเกมนี้มากี่ปีแล้วครับ?',               emotion:'neutral'  },
-      { id:4, text:'มีแผนอะไรสนุกๆ ในสตรีมวันนี้ไหมครับ?',    emotion:'excited'  },
-      { id:5, text:'ตอนนี้อยู่ส่วนไหนของเกมครับ?',             emotion:'neutral'  },
-      { id:6, text:'ทำไมถึงชอบเกมประเภทนี้ครับ?',             emotion:'happy'    },
-      { id:7, text:'มี tips อะไรสำหรับมือใหม่ไหมครับ?',       emotion:'neutral'  },
-      { id:8, text:'เกมนี้ยากแค่ไหนครับ เทียบกับเกมอื่นๆ?', emotion:'neutral'  },
+      { id:1, text:'วันนี้สตรีมถึงกี่โมงครับ?' },
+      { id:2, text:'ชื่นชอบเกมนี้ยังไงบ้างครับ?' },
+      { id:3, text:'เล่นเกมนี้มากี่ปีแล้วครับ?' },
+      { id:4, text:'มีแผนอะไรสนุกๆ ในสตรีมวันนี้ไหมครับ?' },
+      { id:5, text:'ตอนนี้อยู่ส่วนไหนของเกมครับ?' },
+      { id:6, text:'ทำไมถึงชอบเกมประเภทนี้ครับ?' },
+      { id:7, text:'มี tips อะไรสำหรับมือใหม่ไหมครับ?' },
+      { id:8, text:'เกมนี้ยากแค่ไหนครับ เทียบกับเกมอื่นๆ?' },
     ],
   },
   // ── Slip Verification ──
@@ -96,10 +80,10 @@ const DEFAULTS = {
   tiers: [
     { id:'basic', minAmount:0,   name:'ทั่วไป',  color:'#6b7280', icon:'💝', animation:'slideUp',  features:[] },
     { id:'nice',  minAmount:20,  name:'น้ำใจ',    color:'#7c3aed', icon:'💜', animation:'bounceIn', features:['emoji'] },
-    { id:'good',  minAmount:50,  name:'ใจดี',     color:'#3b82f6', icon:'💙', animation:'sparkle',  features:['emoji','emotion'] },
-    { id:'super', minAmount:100, name:'ซูเปอร์',  color:'#10b981', icon:'💚', animation:'burst',    features:['emoji','emotion','longMsg'] },
-    { id:'vip',   minAmount:200, name:'วีไอพี',   color:'#f59e0b', icon:'👑', animation:'vip',      features:['emoji','emotion','longMsg','vip'] },
-    { id:'boss',  minAmount:500, name:'บอส',      color:'#ef4444', icon:'🔥', animation:'boss',     features:['emoji','emotion','longMsg','vip','boss'] },
+    { id:'good',  minAmount:50,  name:'ใจดี',     color:'#3b82f6', icon:'💙', animation:'sparkle',  features:['emoji'] },
+    { id:'super', minAmount:100, name:'ซูเปอร์',  color:'#10b981', icon:'💚', animation:'burst',    features:['emoji','longMsg'] },
+    { id:'vip',   minAmount:200, name:'วีไอพี',   color:'#f59e0b', icon:'👑', animation:'vip',      features:['emoji','longMsg','vip'] },
+    { id:'boss',  minAmount:500, name:'บอส',      color:'#ef4444', icon:'🔥', animation:'boss',     features:['emoji','longMsg','vip','boss'] },
   ],
   // ── TTS Read Settings ──
   ttsRead: {
@@ -118,21 +102,10 @@ const DEFAULTS = {
 };
 
 
-const EMOTION_CUES = {
-  happy:      '(พูดด้วยความสุขและยิ้มแย้ม) ',
-  excited:    '(พูดด้วยความตื่นเต้นและดีใจมากๆ) ',
-  sad:        '(พูดด้วยความเศร้าและหดหู่ใจ) ',
-  angry:      '(พูดด้วยความโกรธและไม่พอใจ) ',
-  whispering: '(กระซิบเบาๆ อย่างลึกลับ) ',
-  neutral:    '',
-};
-
 function deepMerge(base, saved) {
   return {
     ...base,
     ...saved,
-    emotions:       { ...base.emotions,       ...(saved.emotions || {}) },
-    googleEmotions: { ...base.googleEmotions, ...(saved.googleEmotions || {}) },
     bot: {
       ...base.bot,
       ...(saved.bot || {}),
@@ -241,21 +214,18 @@ function saveDonation(d) {
 
 // ─── TTS Helper ─────────────────────────────────────────────────────────────
 
-async function generateTTS(cfg, text, emotion) {
+async function generateTTS(cfg, text) {
   const provider = cfg.ttsProvider || 'elevenlabs';
-  const cue = EMOTION_CUES[emotion] || '';
-  const fullText = `${cue}${text}`;
 
   // ── ElevenLabs ──
   if (provider === 'elevenlabs') {
     if (!cfg.elevenLabsKey) return null;
-    const voiceSettings = (cfg.emotions || {})[emotion] || cfg.emotions?.neutral || {};
     const res = await axios.post(
       `https://api.elevenlabs.io/v1/text-to-speech/${cfg.voiceId}`,
       {
-        text: fullText,
+        text,
         model_id: cfg.modelId || 'eleven_multilingual_v2',
-        voice_settings: voiceSettings,
+        voice_settings: { stability: 0.5, similarity_boost: 0.75, style: 0.0, use_speaker_boost: true },
       },
       {
         headers: {
@@ -272,20 +242,19 @@ async function generateTTS(cfg, text, emotion) {
   // ── Google TTS ──
   if (provider === 'google') {
     if (!cfg.googleTtsKey) return null;
-    const emo = (cfg.googleEmotions || {})[emotion] || cfg.googleEmotions?.neutral || {};
     const res = await axios.post(
       `https://texttospeech.googleapis.com/v1/text:synthesize?key=${cfg.googleTtsKey}`,
       {
-        input: { text: fullText },
+        input: { text },
         voice: {
           languageCode: cfg.googleLang || 'th-TH',
           name: cfg.googleVoice || 'th-TH-Neural2-C',
         },
         audioConfig: {
           audioEncoding: 'MP3',
-          speakingRate: emo.speakingRate ?? 1.0,
-          pitch:        emo.pitch ?? 0,
-          volumeGainDb: emo.volumeGainDb ?? 0,
+          speakingRate: 1.0,
+          pitch:        0,
+          volumeGainDb: 0,
         },
       },
       { headers: { 'Content-Type': 'application/json' } }
@@ -364,7 +333,7 @@ app.get('/api/donations', (req, res) => res.json(loadDonations()));
 // POST new donation
 app.post('/api/donate', async (req, res) => {
   const cfg = loadConfig();
-  const { name, amount, message, emotion = 'neutral', ttsProvider: donorProvider, slipRef, epicStyle } = req.body;
+  const { name, amount, message, ttsProvider: donorProvider, slipRef, epicStyle } = req.body;
 
   if (!name || !amount) return res.status(400).json({ error: 'Name and amount required' });
   if (Number(amount) < cfg.minDonate) {
@@ -387,7 +356,6 @@ app.post('/api/donate', async (req, res) => {
     name: name.trim(),
     amount: Number(amount),
     message: (message || '').trim(),
-    emotion,
     currency: cfg.currency,
     ttsProvider: resolvedProvider,
     slipRef: slipRef || null,
@@ -399,7 +367,7 @@ app.post('/api/donate', async (req, res) => {
   const ttsText = buildTtsText(cfg, donation);
   if (ttsText) {
     try {
-      audioBase64 = await generateTTS({ ...cfg, ttsProvider: resolvedProvider }, ttsText, emotion);
+      audioBase64 = await generateTTS({ ...cfg, ttsProvider: resolvedProvider }, ttsText);
     } catch (e) {
       console.error('TTS error:', e.response?.data || e.message);
     }
@@ -416,14 +384,13 @@ app.post('/api/donate', async (req, res) => {
 // POST test alert
 app.post('/api/test-alert', async (req, res) => {
   const cfg = loadConfig();
-  const { emotion = 'excited', name, amount, message, ttsOnly = false, forceAnimation, epicStyle, forceEpic = false } = req.body;
+  const { name, amount, message, ttsOnly = false, forceAnimation, epicStyle, forceEpic = false } = req.body;
 
   const donation = {
     id: Date.now(),
     name:    (name    || 'ทดสอบระบบ').trim(),
     amount:  Number(amount) || 99,
     message: message !== undefined ? String(message).trim() : 'สวัสดีครับ ขอบคุณสำหรับสตรีมดีๆ!',
-    emotion,
     currency: cfg.currency,
     ttsProvider: cfg.ttsProvider,
     timestamp: new Date().toISOString(),
@@ -436,7 +403,7 @@ app.post('/api/test-alert', async (req, res) => {
   const ttsTextTest = buildTtsText(cfg, donation);
   if (ttsTextTest) {
     try {
-      audioBase64 = await generateTTS(cfg, ttsTextTest, emotion);
+      audioBase64 = await generateTTS(cfg, ttsTextTest);
     } catch (e) {
       console.error('TTS test error:', e.response?.data || e.message);
     }
@@ -465,7 +432,7 @@ app.post('/api/rerun/:id', async (req, res) => {
   let audioBase64 = null;
   const ttsText = buildTtsText(cfg, donation);
   if (ttsText) {
-    try { audioBase64 = await generateTTS(cfg, ttsText, donation.emotion || 'neutral'); }
+    try { audioBase64 = await generateTTS(cfg, ttsText); }
     catch(e) { console.error('Rerun TTS error:', e.message); }
   }
 
@@ -654,7 +621,6 @@ async function fireBotDonation() {
     name:        bot.botName || '🤖 DonateBot',
     amount,
     message:     typeof msg === 'string' ? msg : (msg.text || ''),
-    emotion:     (typeof msg === 'object' ? msg.emotion : null) || 'neutral',
     currency:    cfg.currency,
     ttsProvider: cfg.ttsProvider,
     timestamp:   new Date().toISOString(),
@@ -666,7 +632,7 @@ async function fireBotDonation() {
   const botTtsText = buildTtsText(cfg, donation);
   if (botTtsText) {
     try {
-      audioBase64 = await generateTTS(cfg, botTtsText, donation.emotion);
+      audioBase64 = await generateTTS(cfg, botTtsText);
     } catch (e) { console.error('Bot TTS error:', e.message); }
   }
 
