@@ -144,8 +144,9 @@ function deepMerge(base, saved) {
       ...(saved.paymentAccounts || {}),
       accounts: saved.paymentAccounts?.accounts ?? [],
     },
-    tiers: saved.tiers ?? base.tiers,
-    ttsRead: { ...base.ttsRead, ...(saved.ttsRead || {}) },
+    tiers:      saved.tiers ?? base.tiers,
+    ttsRead:    { ...base.ttsRead,    ...(saved.ttsRead    || {}) },
+    epicAlert:  { ...base.epicAlert,  ...(saved.epicAlert  || {}) },
   };
 }
 
