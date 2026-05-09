@@ -424,6 +424,36 @@
     border-radius: 6px; margin-left: 8px;
   }
   .amount-lock-badge.show { display: inline; }
+
+  /* ── Epic Alert Picker ─────────────────────────────────── */
+  #epic-picker-card { display:none; }
+  .epic-picker-banner {
+    display:flex; align-items:center; gap:10px; margin-bottom:14px;
+    padding:10px 14px;
+    background:linear-gradient(135deg,rgba(255,107,0,.12),rgba(255,0,128,.08));
+    border:1px solid rgba(255,107,0,.3); border-radius:12px;
+    font-size:13px; color:rgba(255,200,120,.9); line-height:1.4;
+  }
+  .epic-picker-banner .epic-fire { font-size:22px; flex-shrink:0; }
+  .epic-style-grid {
+    display:grid; grid-template-columns:repeat(3,1fr); gap:8px;
+  }
+  .epic-btn {
+    background:var(--card2); border:2px solid var(--border); border-radius:12px;
+    color:var(--muted); cursor:pointer; font-family:'Kanit',sans-serif;
+    font-size:12px; padding:10px 6px; text-align:center; transition:all .2s;
+    display:flex; flex-direction:column; align-items:center; gap:5px;
+  }
+  .epic-btn .epic-icon { font-size:24px; }
+  .epic-btn:hover { border-color:rgba(255,107,0,.6); color:rgba(255,200,120,.9); }
+  .epic-btn.selected {
+    background:linear-gradient(135deg,rgba(255,107,0,.18),rgba(255,0,128,.1));
+    border-color:rgba(255,107,0,.8); color:#ffbb66;
+    box-shadow:0 0 14px rgba(255,107,0,.2);
+  }
+  .epic-btn.epic-random.selected { border-color:rgba(180,100,255,.8); color:#cc88ff;
+    background:linear-gradient(135deg,rgba(120,0,255,.15),rgba(255,0,180,.1)); }
+  .epic-skip-note { font-size:11px; color:var(--muted); text-align:center; margin-top:8px; }
 </style>
 </head>
 <body>
@@ -583,6 +613,36 @@
     <p class="tts-note" id="tts-note">✨ คุณสามารถเลือกเสียงที่ต้องการได้</p>
   </div>
 
+  <!-- Epic Alert Style Picker (shown when donation >= epicMinAmount) -->
+  <div class="card card-appear" id="epic-picker-card">
+    <div class="section-title">💥 Epic Alert</div>
+    <div class="epic-picker-banner">
+      <span class="epic-fire">🔥</span>
+      <div>ยอดของคุณพิเศษมาก! เลือก <strong>สไตล์ Epic Alert</strong> ที่จะแสดงบน Stream ได้เลย</div>
+    </div>
+    <div class="epic-style-grid">
+      <button class="epic-btn epic-random selected" data-style="random" onclick="selectEpicStyle(this)">
+        <span class="epic-icon">🎲</span>สุ่ม
+      </button>
+      <button class="epic-btn" data-style="1" onclick="selectEpicStyle(this)">
+        <span class="epic-icon">☄️</span>Meteor
+      </button>
+      <button class="epic-btn" data-style="2" onclick="selectEpicStyle(this)">
+        <span class="epic-icon">⚡</span>Lightning
+      </button>
+      <button class="epic-btn" data-style="3" onclick="selectEpicStyle(this)">
+        <span class="epic-icon">🐉</span>Dragon
+      </button>
+      <button class="epic-btn" data-style="4" onclick="selectEpicStyle(this)">
+        <span class="epic-icon">🌌</span>Galaxy
+      </button>
+      <button class="epic-btn" data-style="5" onclick="selectEpicStyle(this)">
+        <span class="epic-icon">👾</span>Cyber
+      </button>
+    </div>
+    <p class="epic-skip-note">ถ้าไม่เลือก ระบบจะใช้สไตล์ที่ตั้งค่าไว้</p>
+  </div>
+
   <button class="submit-btn" id="submitBtn" onclick="submitDonate()">
     <span class="btn-text">💜 ส่งการบริจาค</span>
     <div class="spinner"></div>
@@ -607,6 +667,11 @@
   let minAmountForTts     = 20;
 
   // Slip state
+  // Epic Alert state
+  let epicEnabled         = false;
+  let epicMinAmount       = 50;
+  let selectedEpicStyle   = 'random';   // 'random' | '1'-'5'
+
   let slipFile            = null;
   let slipUploaded        = false;   // file selected (for manual mode "continue" unlock)
   let slipVerified        = false;   // auto-verified by EasySlip
@@ -679,7 +744,13 @@
       document.getElementById('footerText').textContent =
         `Powered by ${providerName} TTS · Stream Donate System`;
 
+      // Epic Alert config
+      const ea = cfg.epicAlert || {};
+      epicEnabled   = !!ea.enabled;
+      epicMinAmount = Number(ea.minAmount) || 50;
+
       updateTtsPicker();
+      updateEpicPicker();
     } catch(e) {}
   }
 
@@ -747,6 +818,7 @@
       syncQuickBtns(slipVerifiedAmount);
     }
     updateTtsPicker();
+    updateEpicPicker();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -775,6 +847,7 @@
     const amt = Number(document.getElementById('donateAmount').value);
     syncQuickBtns(amt);
     updateTtsPicker();
+    updateEpicPicker();
   }
   function syncQuickBtns(v) {
     document.querySelectorAll('.quick-btn').forEach(b => {
@@ -783,6 +856,25 @@
   }
 
   // ── Emotion / TTS ────────────────────────────────────────────
+  // ── Epic Picker ──────────────────────────────────────────────
+  function updateEpicPicker() {
+    const card = document.getElementById('epic-picker-card');
+    if (!card) return;
+    let amt = 0;
+    if (slipGateEnabled) {
+      amt = slipVerifiedAmount > 0 ? slipVerifiedAmount
+          : Number(document.getElementById('slipManualAmt')?.value || 0);
+    } else {
+      amt = Number(document.getElementById('donateAmount').value);
+    }
+    card.style.display = (epicEnabled && amt >= epicMinAmount) ? 'block' : 'none';
+  }
+  function selectEpicStyle(el) {
+    document.querySelectorAll('.epic-btn').forEach(b => b.classList.remove('selected'));
+    el.classList.add('selected');
+    selectedEpicStyle = el.dataset.style;
+  }
+
   function selectEmotion(el) {
     document.querySelectorAll('.emotion-btn').forEach(b => b.classList.remove('selected'));
     el.classList.add('selected');
@@ -923,6 +1015,8 @@
       const body = { name, amount: Number(amount), message, emotion: selectedEmotion };
       if (bothProvidersAvail && selectedTtsProvider) body.ttsProvider = selectedTtsProvider;
       if (slipVerified && slipTransRef)              body.slipRef     = slipTransRef;
+      // Pass chosen epic style only when the picker was visible
+      if (epicEnabled && Number(amount) >= epicMinAmount) body.epicStyle = selectedEpicStyle;
 
       const res  = await fetch('/api/donate', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -941,6 +1035,12 @@
       document.getElementById('donateMessage').value = '';
       updateCharCount(); syncQuickBtns(0);
       selectEmotion(document.querySelector('[data-emotion="neutral"]'));
+      // Reset epic picker
+      selectedEpicStyle = 'random';
+      document.querySelectorAll('.epic-btn').forEach(b => b.classList.remove('selected'));
+      const randomBtn = document.querySelector('.epic-btn[data-style="random"]');
+      if (randomBtn) randomBtn.classList.add('selected');
+      updateEpicPicker();
       if (bothProvidersAvail) {
         const defaultBtn = document.querySelector(`[data-provider="${defaultProvider}"]`);
         if (defaultBtn) selectTts(defaultBtn, true);

@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Donation Overlay</title>
+<link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Bungee&family=Orbitron:wght@700;900&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@400;600;700;800&display=swap');
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -308,6 +309,130 @@
     opacity:0; transition:opacity .4s; pointer-events:none;
   }
   #anim-badge.show { opacity:1; }
+
+  /* ══════════════════════════════════════════════════════════
+     EPIC ALERT CONTAINER
+  ══════════════════════════════════════════════════════════ */
+  #epic-alert-container {
+    position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%);
+    width: 580px; height: 240px;
+    display: none; align-items: center; justify-content: center;
+    z-index: 100; overflow: visible;
+  }
+  #epicCanvas { position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:5; }
+  #epicContent { position:relative;z-index:10;width:100%; }
+
+  /* ── shared epic keyframes ── */
+  @keyframes fu{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  @keyframes aOut{to{opacity:0;transform:scale(.95)}}
+  @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}
+
+  /* ── 1. METEOR IMPACT ── */
+  @keyframes meteorDrop{from{opacity:0;transform:translateY(-120px) rotate(-45deg) scale(.3)}to{opacity:1;transform:translateY(0) rotate(0deg) scale(1)}}
+  @keyframes impactRing{from{transform:scale(0);opacity:.8}to{transform:scale(4);opacity:0}}
+  @keyframes crackle{0%,100%{text-shadow:0 0 10px #ff6b00,0 0 30px #ff3300}50%{text-shadow:0 0 20px #ffaa00,0 0 60px #ff6b00,0 0 100px #ff3300}}
+  @keyframes scan2{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+  .mt-wrap{position:relative;width:580px;animation:aOut .4s ease 4.8s forwards}
+  .mt-impact{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:80px;height:80px;border-radius:50%;background:rgba(255,120,0,.2);animation:impactRing .4s ease .1s forwards;z-index:0}
+  .mt-impact2{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:80px;height:80px;border-radius:50%;background:rgba(255,200,0,.1);animation:impactRing .5s ease .2s forwards;z-index:0}
+  .mt-box{position:relative;z-index:1;background:linear-gradient(135deg,rgba(20,8,0,.96),rgba(30,12,0,.94));border:2px solid rgba(255,120,0,.5);border-radius:8px;padding:18px 24px;box-shadow:0 0 60px rgba(255,80,0,.4),0 0 120px rgba(255,80,0,.15),inset 0 0 40px rgba(255,60,0,.06);overflow:hidden;animation:meteorDrop .5s cubic-bezier(.22,.61,.36,1) .05s both,shake .3s ease .55s}
+  .mt-box::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,#ff6b00,#ffcc00,#ff6b00,transparent);animation:scan2 .8s ease}
+  .mt-box::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,100,0,.04),transparent 50%)}
+  .mt-label{font-family:'Bungee',sans-serif;font-size:10px;letter-spacing:4px;color:rgba(255,150,0,.7);text-transform:uppercase;margin-bottom:4px;opacity:0;animation:fu .25s .6s forwards}
+  .mt-row{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+  .mt-name{font-family:'Black Ops One',sans-serif;font-size:32px;color:#fff;line-height:1;text-shadow:0 0 20px rgba(255,120,0,.5);opacity:0;animation:fu .25s .72s forwards}
+  .mt-vs{font-family:'Bungee',sans-serif;font-size:13px;color:rgba(255,255,255,.3);padding:0 4px}
+  .mt-amt{font-family:'Black Ops One',sans-serif;font-size:42px;line-height:1;color:#ffaa00;opacity:0;animation:fu .25s .86s forwards,crackle 1.2s ease 1.2s infinite}
+  .mt-msg{font-family:'Rajdhani',sans-serif;font-size:14px;color:rgba(255,200,150,.7);margin-top:6px;opacity:0;animation:fu .25s 1s forwards}
+  .mt-icon{position:absolute;right:20px;top:50%;transform:translateY(-50%);font-size:60px;filter:drop-shadow(0 0 20px rgba(255,100,0,.7));opacity:0;animation:fu .3s .5s forwards}
+
+  /* ── 2. LIGHTNING GOD ── */
+  @keyframes boltStrike{0%{clip-path:inset(0 0 100% 0);opacity:1}100%{clip-path:inset(0 0 0% 0);opacity:1}}
+  @keyframes thunderFlash{0%{opacity:0}5%{opacity:.9}10%{opacity:.2}15%{opacity:.8}25%{opacity:0}100%{opacity:0}}
+  @keyframes glowPulse{0%,100%{box-shadow:0 0 30px rgba(100,150,255,.4),0 0 60px rgba(80,100,255,.2)}50%{box-shadow:0 0 60px rgba(150,200,255,.7),0 0 120px rgba(100,150,255,.4)}}
+  .lg-flash{position:absolute;inset:0;background:rgba(180,200,255,.4);z-index:15;animation:thunderFlash 1s ease .1s both;pointer-events:none;border-radius:10px}
+  .lg-wrap{position:relative;width:580px;animation:aOut .4s ease 4.8s forwards}
+  .lg-box{background:linear-gradient(135deg,rgba(5,10,30,.97),rgba(10,15,45,.94));border:2px solid rgba(100,150,255,.4);border-radius:8px;padding:16px 22px;position:relative;overflow:hidden;animation:glowPulse 2s ease 1s infinite}
+  .lg-bolt-top{position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,#7090ff,#fff,#7090ff,transparent);animation:boltStrike .3s ease .15s both}
+  .lg-bolt-bot{position:absolute;bottom:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,#7090ff,#fff,#7090ff,transparent);animation:boltStrike .3s ease .2s both}
+  .lg-bolt-l{position:absolute;left:0;top:0;bottom:0;width:2px;background:linear-gradient(180deg,transparent,#7090ff,#fff,#7090ff,transparent);animation:boltStrike .3s ease .1s both}
+  .lg-bolt-r{position:absolute;right:0;top:0;bottom:0;width:2px;background:linear-gradient(180deg,transparent,#7090ff,#fff,#7090ff,transparent);animation:boltStrike .3s ease .1s both}
+  .lg-bg-glow{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:300px;height:150px;background:radial-gradient(ellipse,rgba(80,120,255,.15),transparent 70%);pointer-events:none}
+  .lg-label{font-family:'Orbitron',monospace;font-size:9px;letter-spacing:4px;color:rgba(130,160,255,.7);text-transform:uppercase;margin-bottom:4px;opacity:0;animation:fu .25s .5s forwards}
+  .lg-content{display:flex;align-items:center;gap:16px}
+  .lg-icon{font-size:56px;filter:drop-shadow(0 0 16px rgba(150,180,255,.8));flex-shrink:0;opacity:0;animation:fu .3s .4s forwards}
+  .lg-text{flex:1}
+  .lg-name{font-family:'Orbitron',monospace;font-size:24px;font-weight:900;color:#fff;line-height:1;letter-spacing:1px;text-shadow:0 0 20px rgba(150,200,255,.6);opacity:0;animation:fu .25s .6s forwards}
+  .lg-amt{font-family:'Orbitron',monospace;font-size:38px;font-weight:900;line-height:1;background:linear-gradient(180deg,#fff,#a0c0ff,#6080ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;filter:drop-shadow(0 0 12px rgba(100,150,255,.7));opacity:0;animation:fu .25s .75s forwards}
+  .lg-msg{font-family:'Rajdhani',sans-serif;font-size:13px;color:rgba(160,200,255,.65);margin-top:4px;opacity:0;animation:fu .25s .9s forwards}
+
+  /* ── 3. DRAGON FIRE ── */
+  @keyframes dragonIn{from{opacity:0;transform:translateX(-80px) scale(.8)}to{opacity:1;transform:none}}
+  @keyframes fireBreath{0%{width:0}100%{width:100%}}
+  @keyframes lavaFlow{0%{background-position:0%}100%{background-position:200%}}
+  @keyframes sparkRise{0%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-120px) scale(0)}}
+  .df-wrap{position:relative;width:580px;animation:aOut .4s ease 4.8s forwards}
+  .df-fire-bar{height:4px;background:linear-gradient(90deg,#ff2200,#ff6600,#ffaa00,#ff6600,#ff2200);background-size:200%;border-radius:2px 2px 0 0;width:0;animation:fireBreath .4s ease .1s forwards,lavaFlow 1s .5s linear infinite}
+  .df-box{background:linear-gradient(135deg,rgba(15,5,0,.97),rgba(25,8,0,.94));border:2px solid rgba(255,80,0,.45);border-top:none;border-radius:0 0 8px 8px;padding:14px 20px;position:relative;overflow:hidden;box-shadow:0 0 80px rgba(255,60,0,.3),inset 0 0 40px rgba(255,30,0,.05)}
+  .df-glow{position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:60%;height:60%;background:radial-gradient(ellipse,rgba(255,80,0,.12),transparent);pointer-events:none}
+  .df-main{display:flex;align-items:center;gap:0}
+  .df-dragon{font-size:72px;flex-shrink:0;filter:drop-shadow(0 0 20px rgba(255,80,0,.8));opacity:0;animation:dragonIn .5s cubic-bezier(.34,1.56,.64,1) .2s forwards;margin-right:4px}
+  .df-content{flex:1}
+  .df-label{font-family:'Bungee',sans-serif;font-size:9px;letter-spacing:4px;color:rgba(255,130,0,.7);text-transform:uppercase;opacity:0;animation:fu .2s .65s forwards;margin-bottom:2px}
+  .df-name{font-family:'Black Ops One',sans-serif;font-size:28px;color:#fff;line-height:1;text-shadow:0 0 20px rgba(255,120,0,.5);opacity:0;animation:fu .2s .78s forwards}
+  .df-amt{font-family:'Black Ops One',sans-serif;font-size:40px;line-height:1;background:linear-gradient(90deg,#ff4400,#ff8800,#ffcc00,#ff8800,#ff4400);background-size:200%;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;opacity:0;animation:fu .2s .9s forwards,lavaFlow 1.5s 1.1s linear infinite}
+  .df-msg{font-family:'Rajdhani',sans-serif;font-size:13px;color:rgba(255,200,150,.65);margin-top:4px;opacity:0;animation:fu .2s 1.05s forwards}
+  .df-sparks{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+  .df-spark{position:absolute;bottom:0;width:3px;height:3px;border-radius:50%;animation:sparkRise 1.2s ease infinite}
+  .df-spark:nth-child(1){left:10%;background:#ff6600;animation-delay:0s}.df-spark:nth-child(2){left:25%;background:#ffaa00;animation-delay:.2s}.df-spark:nth-child(3){left:40%;background:#ff4400;animation-delay:.4s}.df-spark:nth-child(4){left:55%;background:#ffcc00;animation-delay:.1s}.df-spark:nth-child(5){left:70%;background:#ff6600;animation-delay:.3s}.df-spark:nth-child(6){left:85%;background:#ffaa00;animation-delay:.5s}.df-spark:nth-child(7){left:60%;background:#ff3300;animation-delay:.15s}.df-spark:nth-child(8){left:30%;background:#ffdd00;animation-delay:.35s}
+
+  /* ── 4. GALAXY NOVA ── */
+  @keyframes novaExplode{0%{transform:scale(0);opacity:1}100%{transform:scale(6);opacity:0}}
+  @keyframes novaIn{from{opacity:0;transform:scale(.7)}to{opacity:1;transform:none}}
+  @keyframes starPulse{0%,100%{opacity:.5;transform:scale(1)}50%{opacity:1;transform:scale(1.02)}}
+  @keyframes nebula{0%{filter:hue-rotate(0deg) brightness(1)}100%{filter:hue-rotate(360deg) brightness(1.1)}}
+  @keyframes twinkle{0%,100%{opacity:.2}50%{opacity:.8}}
+  @keyframes gradFlow2{0%{background-position:0%}100%{background-position:300%}}
+  .gn-wrap{position:relative;width:580px;animation:aOut .4s ease 4.8s forwards}
+  .gn-nova1,.gn-nova2{position:absolute;top:50%;left:50%;width:60px;height:60px;border-radius:50%;transform:translate(-50%,-50%)}
+  .gn-nova1{background:radial-gradient(circle,rgba(200,100,255,.9),rgba(100,0,255,.4),transparent);animation:novaExplode .5s ease .1s forwards}
+  .gn-nova2{background:radial-gradient(circle,rgba(100,200,255,.6),transparent);animation:novaExplode .6s ease .15s forwards}
+  .gn-box{background:linear-gradient(135deg,rgba(8,5,20,.97),rgba(15,5,35,.94));border:1px solid rgba(180,100,255,.35);border-radius:12px;padding:18px 22px;position:relative;overflow:hidden;box-shadow:0 0 80px rgba(150,50,255,.25),0 0 160px rgba(100,0,255,.1);animation:novaIn .5s cubic-bezier(.34,1.56,.64,1) .2s both,starPulse 3s ease 1s infinite}
+  .gn-stars{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+  .gn-star{position:absolute;border-radius:50%;background:#fff;animation:twinkle 2s ease infinite}
+  .gn-nebula-bg{position:absolute;inset:0;background:conic-gradient(from 0deg at 30% 50%,rgba(150,50,255,.06),rgba(50,150,255,.04),rgba(255,50,150,.04),rgba(150,50,255,.06));animation:nebula 8s linear infinite;pointer-events:none}
+  .gn-content{position:relative;z-index:2;display:flex;align-items:center;gap:16px}
+  .gn-planet{font-size:64px;flex-shrink:0;filter:drop-shadow(0 0 20px rgba(180,100,255,.8));opacity:0;animation:fu .3s .5s forwards}
+  .gn-text{flex:1}
+  .gn-label{font-family:'Orbitron',monospace;font-size:9px;letter-spacing:4px;color:rgba(200,150,255,.65);text-transform:uppercase;margin-bottom:4px;opacity:0;animation:fu .25s .6s forwards}
+  .gn-name{font-family:'Orbitron',monospace;font-size:22px;font-weight:900;color:#fff;letter-spacing:1px;line-height:1;text-shadow:0 0 20px rgba(200,150,255,.5);opacity:0;animation:fu .25s .72s forwards}
+  .gn-amt{font-family:'Orbitron',monospace;font-size:36px;font-weight:900;line-height:1.1;background:linear-gradient(90deg,#ff80ff,#a060ff,#60a0ff,#a060ff,#ff80ff);background-size:300%;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;filter:drop-shadow(0 0 10px rgba(180,100,255,.6));opacity:0;animation:fu .25s .86s forwards,gradFlow2 2s linear 1s infinite}
+  .gn-msg{font-family:'Rajdhani',sans-serif;font-size:13px;color:rgba(200,180,255,.6);margin-top:4px;opacity:0;animation:fu .25s 1s forwards}
+
+  /* ── 5. CYBER GLITCH ── */
+  @keyframes glitchIn{0%{clip-path:inset(0 100% 0 0);opacity:1}30%{clip-path:inset(0 60% 0 0)}60%{clip-path:inset(0 20% 0 0)}80%{clip-path:inset(0 5% 0 0)}100%{clip-path:inset(0 0% 0 0)}}
+  @keyframes glitch1{0%,90%{transform:none;opacity:1}92%{transform:translate(-4px,0);opacity:.8;clip-path:inset(10% 0 80% 0)}94%{transform:translate(4px,0);clip-path:inset(40% 0 50% 0)}96%{transform:translate(-2px,0);clip-path:inset(60% 0 30% 0)}98%{transform:none;opacity:1;clip-path:none}100%{transform:none}}
+  @keyframes glitch2{0%,85%{transform:none;opacity:0}86%{transform:translate(4px,0);opacity:.6;clip-path:inset(20% 0 70% 0)}88%{transform:translate(-4px,0);clip-path:inset(50% 0 40% 0)}90%{transform:none;opacity:0}100%{transform:none;opacity:0}}
+  @keyframes scanlines{0%{background-position:0 0}100%{background-position:0 100px}}
+  @keyframes borderGlitch{0%,100%{border-color:rgba(0,255,150,.4)}25%{border-color:rgba(255,0,100,.6)}50%{border-color:rgba(0,200,255,.5)}75%{border-color:rgba(255,200,0,.4)}}
+  .cg-wrap{position:relative;width:580px;animation:aOut .4s ease 4.8s forwards}
+  .cg-box{background:linear-gradient(135deg,rgba(5,15,10,.97),rgba(0,20,15,.94));border:2px solid rgba(0,255,150,.4);border-radius:6px;padding:16px 20px;position:relative;overflow:hidden;animation:glitchIn .6s cubic-bezier(.77,0,.175,1) .05s both,borderGlitch 3s ease 1.5s infinite}
+  .cg-scanlines{position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,255,100,.025) 2px,rgba(0,255,100,.025) 4px);animation:scanlines 4s linear infinite;pointer-events:none}
+  .cg-glitch1{position:absolute;inset:0;opacity:0;background:inherit;filter:hue-rotate(180deg);mix-blend-mode:screen;animation:glitch1 3s ease 1.5s infinite;pointer-events:none}
+  .cg-glitch2{position:absolute;inset:0;opacity:0;background:inherit;filter:invert(1) hue-rotate(90deg);mix-blend-mode:multiply;animation:glitch2 3s ease 1.5s infinite;pointer-events:none}
+  .cg-top-bar{position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,#00ff96,#00ffff,#00ff96,transparent);animation:glitchIn .4s ease .2s both}
+  .cg-corner-tl,.cg-corner-br{position:absolute;width:20px;height:20px}
+  .cg-corner-tl{top:0;left:0;border-top:2px solid #00ff96;border-left:2px solid #00ff96}
+  .cg-corner-br{bottom:0;right:0;border-bottom:2px solid #00ff96;border-right:2px solid #00ff96}
+  .cg-content{position:relative;z-index:2;display:flex;align-items:center;gap:14px}
+  .cg-icon{font-size:56px;flex-shrink:0;filter:drop-shadow(0 0 16px rgba(0,255,150,.7));opacity:0;animation:fu .3s .6s forwards}
+  .cg-text{flex:1}
+  .cg-label{font-family:'Orbitron',monospace;font-size:9px;letter-spacing:4px;color:rgba(0,255,150,.65);text-transform:uppercase;margin-bottom:4px;opacity:0;animation:fu .25s .65s forwards}
+  .cg-name{font-family:'Orbitron',monospace;font-size:22px;font-weight:900;color:#fff;line-height:1;text-shadow:0 0 16px rgba(0,255,150,.5);letter-spacing:1px;opacity:0;animation:fu .25s .78s forwards}
+  .cg-amt{font-family:'Orbitron',monospace;font-size:36px;font-weight:900;line-height:1.1;color:#00ff96;text-shadow:0 0 20px rgba(0,255,150,.8),0 0 40px rgba(0,255,150,.4);opacity:0;animation:fu .25s .9s forwards}
+  .cg-msg{font-family:'Rajdhani',sans-serif;font-size:13px;color:rgba(100,255,200,.6);margin-top:4px;opacity:0;animation:fu .25s 1.05s forwards}
+  .cg-bar{position:absolute;right:16px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:3px;opacity:0;animation:fu .3s 1.1s forwards}
+  .cg-bar-item{width:4px;border-radius:2px;background:rgba(0,255,150,.4)}
 </style>
 </head>
 <body>
@@ -344,6 +469,11 @@
 </div>
 
 <audio id="ttsAudio"></audio>
+
+<div id="epic-alert-container">
+  <canvas id="epicCanvas"></canvas>
+  <div id="epicContent"></div>
+</div>
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
@@ -392,18 +522,107 @@
     neutral:    null,
   };
 
-  let currentTheme    = 'purple-galaxy';
-  let queue           = [];
-  let isShowing       = false;
-  let alertDuration   = 8000;
-  let lastAnimIdx     = -1;
-  let paymentChipsHtml = '';   // pre-rendered payment chips HTML
+  let currentTheme     = 'purple-galaxy';
+  let queue            = [];
+  let isShowing        = false;
+  let alertDuration    = 8000;
+  let lastAnimIdx      = -1;
+  let paymentChipsHtml = '';
+  let epicAlertConfig  = { enabled: false, minAmount: 50, style: 'random' };
 
   const ACCOUNT_TYPE_OVERLAY = {
     bank:      { icon:'🏦' },
     promptpay: { icon:'📲' },
     truemoney: { icon:'💚' },
   };
+
+  // ── Epic Alert HTML generators ────────────────────────────
+  function epicHtml1(s){return`<div class="mt-wrap"><div class="mt-impact"></div><div class="mt-impact2"></div><div class="mt-box"><div class="mt-icon">☄️</div><div class="mt-label">💥 DONATION IMPACT</div><div class="mt-row"><div class="mt-name">${s.n}</div><div class="mt-vs">DONATED</div></div><div class="mt-amt">${s.a}</div>${s.m?`<div class="mt-msg">${s.m}</div>`:''}</div></div>`}
+  function epicHtml2(s){return`<div class="lg-wrap"><div class="lg-flash"></div><div class="lg-box"><div class="lg-bolt-top"></div><div class="lg-bolt-bot"></div><div class="lg-bolt-l"></div><div class="lg-bolt-r"></div><div class="lg-bg-glow"></div><div class="lg-content"><div class="lg-icon">⚡</div><div class="lg-text"><div class="lg-label">⚡ LIGHTNING DONATION</div><div class="lg-name">${s.n}</div><div class="lg-amt">${s.a}</div>${s.m?`<div class="lg-msg">${s.m}</div>`:''}</div></div></div></div>`}
+  function epicHtml3(s){const sp='<div class="df-spark"></div>'.repeat(8);return`<div class="df-wrap"><div class="df-fire-bar"></div><div class="df-box"><div class="df-glow"></div><div class="df-sparks">${sp}</div><div class="df-main"><div class="df-dragon">🐉</div><div class="df-content"><div class="df-label">🐉 DRAGON DONATION</div><div class="df-name">${s.n}</div><div class="df-amt">${s.a}</div>${s.m?`<div class="df-msg">${s.m}</div>`:''}</div></div></div></div>`}
+  function epicHtml4(s){let st='';for(let i=0;i<16;i++){const sz=1+Math.random()*2,x=Math.random()*100,y=Math.random()*100,d=Math.random()*3;st+=`<div class="gn-star" style="width:${sz}px;height:${sz}px;left:${x}%;top:${y}%;animation-delay:${d}s"></div>`}return`<div class="gn-wrap"><div class="gn-nova1"></div><div class="gn-nova2"></div><div class="gn-box"><div class="gn-nebula-bg"></div><div class="gn-stars">${st}</div><div class="gn-content"><div class="gn-planet">🪐</div><div class="gn-text"><div class="gn-label">🌌 COSMIC DONATION</div><div class="gn-name">${s.n}</div><div class="gn-amt">${s.a}</div>${s.m?`<div class="gn-msg">${s.m}</div>`:''}</div></div></div></div>`}
+  function epicHtml5(s){let b='';[80,50,100,65,45,90,30,70].forEach(h=>b+=`<div class="cg-bar-item" style="height:${h*.4}px"></div>`);return`<div class="cg-wrap"><div class="cg-box"><div class="cg-scanlines"></div><div class="cg-glitch1"></div><div class="cg-glitch2"></div><div class="cg-top-bar"></div><div class="cg-corner-tl"></div><div class="cg-corner-br"></div><div class="cg-content"><div class="cg-icon">👾</div><div class="cg-text"><div class="cg-label">// DONATION.EXE</div><div class="cg-name">${s.n}</div><div class="cg-amt">${s.a}</div>${s.m?`<div class="cg-msg">${s.m}</div>`:''}</div><div class="cg-bar">${b}</div></div></div></div>`}
+  const EPIC_HTML_FNS = [null, epicHtml1, epicHtml2, epicHtml3, epicHtml4, epicHtml5];
+
+  // ── Epic canvas particle engine ───────────────────────────
+  function runEpicParticles(canvas, id) {
+    const ctx = canvas.getContext('2d');
+    canvas.width = canvas.offsetWidth || 580;
+    canvas.height = canvas.offsetHeight || 240;
+    let pts = [], running = true;
+    const cfgs = {
+      1:{cols:['#ff6600','#ff3300','#ffaa00','#fff'],sp:()=>({x:canvas.width/2+Math.random()*60-30,y:canvas.height/2,vx:(Math.random()-.5)*8,vy:(Math.random()-.5)*8-Math.random()*4,l:1,d:.015+Math.random()*.02,s:2+Math.random()*5})},
+      2:{cols:['#8899ff','#aabbff','#ffffff','#4466ff'],sp:()=>({x:Math.random()*canvas.width,y:0,vx:(Math.random()-.5)*1.5,vy:4+Math.random()*6,l:1,d:.02,s:1+Math.random()*3})},
+      3:{cols:['#ff4400','#ff8800','#ffcc00'],sp:()=>({x:40+Math.random()*canvas.width*.3,y:canvas.height,vx:(Math.random()-.5)*3,vy:-(2+Math.random()*5),l:1,d:.018+Math.random()*.015,s:1.5+Math.random()*3.5})},
+      4:{cols:['#ff88ff','#aa60ff','#6688ff','#ff44aa'],sp:()=>({x:Math.random()*canvas.width,y:Math.random()*canvas.height,vx:(Math.random()-.5)*.5,vy:(Math.random()-.5)*.5,l:1,d:.008+Math.random()*.01,s:.5+Math.random()*2.5})},
+      5:{cols:['#00ff96','#00ffcc','#ffffff','#00ff44'],sp:()=>({x:Math.random()*canvas.width,y:Math.random()*canvas.height,vx:(Math.random()-.5)*4,vy:-(1+Math.random()*2),l:1,d:.02+Math.random()*.03,s:.5+Math.random()*2})},
+    };
+    const cfg = cfgs[id];
+    const spawnCount = id === 4 ? 3 : 6;
+    (function loop() {
+      if (!running) return;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      for (let i = 0; i < spawnCount; i++) pts.push(cfg.sp());
+      pts = pts.filter(p => p.l > 0);
+      pts.forEach(p => {
+        p.x += p.vx; p.y += p.vy;
+        if (id <= 3) p.vy += .12;
+        p.l -= p.d;
+        ctx.globalAlpha = Math.max(0, p.l) * .85;
+        ctx.fillStyle = cfg.cols[0 | Math.random() * cfg.cols.length];
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.s, 0, Math.PI * 2); ctx.fill();
+      });
+      ctx.globalAlpha = 1;
+      requestAnimationFrame(loop);
+    })();
+    return () => { running = false; ctx.clearRect(0, 0, canvas.width, canvas.height); };
+  }
+
+  // ── Show Epic Alert ───────────────────────────────────────
+  async function showEpicAlert(donation) {
+    return new Promise(async (resolve) => {
+      const container = document.getElementById('epic-alert-container');
+      const content   = document.getElementById('epicContent');
+      const canvas    = document.getElementById('epicCanvas');
+
+      // Donor's choice overrides config style (unless they also chose "random")
+      const donorStyle = donation.epicStyle && donation.epicStyle !== 'random'
+        ? donation.epicStyle : null;
+      const resolvedStyle = donorStyle || epicAlertConfig.style;
+      let styleId = resolvedStyle === 'random'
+        ? Math.floor(Math.random() * 5) + 1
+        : (parseInt(resolvedStyle) || 1);
+      styleId = Math.max(1, Math.min(5, styleId));
+
+      const s = {
+        n: donation.name || '?',
+        a: `฿${Number(donation.amount).toLocaleString()}`,
+        m: donation.message || '',
+      };
+
+      content.innerHTML = EPIC_HTML_FNS[styleId](s);
+      container.style.display = 'flex';
+      const stopFx = runEpicParticles(canvas, styleId);
+
+      // Audio
+      const audio = document.getElementById('ttsAudio');
+      let audioDuration = 0;
+      if (donation.audioBase64) {
+        audio.src = 'data:audio/mpeg;base64,' + donation.audioBase64;
+        await new Promise(r => { audio.onloadedmetadata = () => { audioDuration = audio.duration * 1000; r(); }; audio.onerror = r; audio.load(); });
+        audio.play().catch(() => {});
+      }
+
+      // Epic CSS exit animation fires at 4.8s; total = max(5200, audio+1000)
+      const totalDuration = Math.max(5200, audioDuration + 1000);
+      setTimeout(() => {
+        container.style.display = 'none';
+        content.innerHTML = '';
+        if (stopFx) stopFx();
+        resolve();
+      }, totalDuration);
+    });
+  }
 
   async function loadConfig() {
     try {
@@ -426,6 +645,14 @@
       } else {
         paymentChipsHtml = '';
       }
+
+      // Epic alert config
+      const ea = cfg.epicAlert || {};
+      epicAlertConfig = {
+        enabled:   !!ea.enabled,
+        minAmount: Number(ea.minAmount) || 50,
+        style:     ea.style || 'random',
+      };
     } catch(e) {}
   }
 
@@ -488,6 +715,10 @@
   }
 
   async function showAlert(donation) {
+    const amount = Number(donation.amount) || 0;
+    if (epicAlertConfig.enabled && amount >= epicAlertConfig.minAmount) {
+      return showEpicAlert(donation);
+    }
     return new Promise(async (resolve) => {
       const box     = document.getElementById('alertBox');
       const emotion = donation.emotion || 'neutral';

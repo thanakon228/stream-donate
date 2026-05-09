@@ -858,6 +858,39 @@
       </div>
     </div>
 
+    <!-- Epic Alert Settings -->
+    <div class="setting-card full" style="margin-top:8px;border:1px solid rgba(255,107,0,.25);background:rgba(255,107,0,.03)">
+      <h3>💥 Epic Alert — แสดงเอฟเฟกต์พิเศษเมื่อโดเนทสูง</h3>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px">เมื่อโดเนทถึงยอดที่กำหนด Overlay จะเปลี่ยนเป็น animation สุดอลังการ 5 แบบ</p>
+      <div style="display:grid;grid-template-columns:auto 1fr 1fr;gap:12px;align-items:start">
+        <div class="form-group" style="margin-bottom:0">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+            <input type="checkbox" id="cfg-epicEnabled" style="width:auto;accent-color:#ff6b00">
+            <strong>เปิด Epic Alert</strong>
+          </label>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">แทนที่ alert ปกติเมื่อถึงยอด</div>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label>ยอดขั้นต่ำ (฿)</label>
+          <input type="number" id="cfg-epicMinAmount" placeholder="50" min="1">
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label>สไตล์</label>
+          <select id="cfg-epicStyle">
+            <option value="random">🎲 สุ่มทุกครั้ง</option>
+            <option value="1">☄️ Meteor Impact</option>
+            <option value="2">⚡ Lightning God</option>
+            <option value="3">🐉 Dragon Fire</option>
+            <option value="4">🌌 Galaxy Nova</option>
+            <option value="5">👾 Cyber Glitch</option>
+          </select>
+        </div>
+      </div>
+      <div style="margin-top:12px;padding:10px 14px;background:rgba(255,107,0,.06);border-radius:8px;font-size:12px;color:rgba(255,255,255,.5)">
+        💡 ตัวอย่าง: เปิดใช้ + ยอดขั้นต่ำ 50 → โดเนท ฿50 ขึ้นไปจะได้ Epic Alert แทน alert ธรรมดา
+      </div>
+    </div>
+
     <div class="btn-row">
       <button class="btn btn-primary" onclick="saveSettings()">💾 บันทึกการตั้งค่า</button>
     </div>
@@ -1454,6 +1487,11 @@
     document.getElementById('cfg-minDonate').value     = cfg.minDonate || 20;
     document.getElementById('cfg-currency').value      = cfg.currency || 'THB';
     document.getElementById('cfg-alertDuration').value = cfg.alertDuration || 8;
+    // Epic Alert
+    const ea = cfg.epicAlert || {};
+    document.getElementById('cfg-epicEnabled').checked   = !!ea.enabled;
+    document.getElementById('cfg-epicMinAmount').value   = ea.minAmount ?? 50;
+    document.getElementById('cfg-epicStyle').value       = ea.style || 'random';
     // Provider
     switchProvider(cfg.ttsProvider || 'elevenlabs');
     // Theme
@@ -1626,6 +1664,11 @@
       minDonate:     Number(document.getElementById('cfg-minDonate').value),
       currency:      document.getElementById('cfg-currency').value,
       alertDuration: Number(document.getElementById('cfg-alertDuration').value),
+      epicAlert: {
+        enabled:   document.getElementById('cfg-epicEnabled').checked,
+        minAmount: Number(document.getElementById('cfg-epicMinAmount').value) || 50,
+        style:     document.getElementById('cfg-epicStyle').value,
+      },
     };
     await fetch('/api/config', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
     showToast('✅ บันทึกการตั้งค่าแล้ว');
