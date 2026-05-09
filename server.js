@@ -227,6 +227,16 @@ function stripActionTags(text) {
   return text.replace(/\[[^\]]*\]/g, '').replace(/\s{2,}/g, ' ').trim();
 }
 
+// Map donor-chosen style to provider-specific prefix/tag
+const STYLE_MAP = {
+  excited:   { elevenTag: '[excited] ',     geminiPrefix: 'Speak with excitement and high energy: ' },
+  happy:     { elevenTag: '[laughs] ',      geminiPrefix: 'Speak cheerfully and joyfully: ' },
+  heartfelt: { elevenTag: '',               geminiPrefix: 'Speak warmly and with heartfelt sincerity: ' },
+  sad:       { elevenTag: '[sighs] ',       geminiPrefix: 'Speak with sadness and deep emotion: ' },
+  funny:     { elevenTag: '[laughs] ',      geminiPrefix: 'Speak in a humorous and playful tone: ' },
+  whisper:   { elevenTag: '[whispering] ',  geminiPrefix: 'Speak in a soft, intimate whisper: ' },
+};
+
 // Wrap raw PCM audio (from Gemini API) in a WAV container for browser playback
 // Gemini TTS returns s16le PCM at 24 kHz mono
 function pcmToWav(pcmBuffer, sampleRate = 24000, numChannels = 1, bitDepth = 16) {
@@ -251,18 +261,22 @@ function pcmToWav(pcmBuffer, sampleRate = 24000, numChannels = 1, bitDepth = 16)
 }
 
 // amount = donation amount; used by Google TTS for tiered model selection
+// ttsStyle = donor-chosen style key (e.g. 'excited', 'sad') — applied per provider
 // Returns base64 string (MP3 for ElevenLabs/Neural2, WAV for Gemini)
-async function generateTTS(cfg, text, amount = 0) {
+async function generateTTS(cfg, text, amount = 0, ttsStyle = '') {
   const provider = cfg.ttsProvider || 'elevenlabs';
+  const styleInfo = STYLE_MAP[ttsStyle] || {};
 
   // ── ElevenLabs ──
   // eleven_v3 supports [laughs] [sighs] [gasps] etc.; earlier models do not
   if (provider === 'elevenlabs') {
     if (!cfg.elevenLabsKey) return null;
+    // Prepend action tag for selected style (eleven_v3 only; ignored on older models)
+    const styledText = styleInfo.elevenTag ? styleInfo.elevenTag + text : text;
     const res = await axios.post(
       `https://api.elevenlabs.io/v1/text-to-speech/${cfg.voiceId}`,
       {
-        text,
+        text: styledText,
         model_id: cfg.modelId || 'eleven_v3',
         voice_settings: {
           stability:        0.5,
@@ -313,8 +327,12 @@ async function generateTTS(cfg, text, amount = 0) {
         const res = await axios.post(
           `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent`,
           {
-            // Prepend optional style instruction so the model speaks with the right emotion
-        contents: [{ parts: [{ text: cfg.geminiTtsStyle ? `${cfg.geminiTtsStyle}: ${text}` : text }] }],
+            // Build instruction: donor style > global config style > plain text
+        contents: [{ parts: [{ text:
+          styleInfo.geminiPrefix  ? styleInfo.geminiPrefix + text :
+          cfg.geminiTtsStyle      ? `${cfg.geminiTtsStyle}: ${text}` :
+          text
+        }] }],
             generationConfig: {
               responseModalities: ['AUDIO'],
               speechConfig: {
@@ -435,7 +453,7 @@ app.get('/api/donations', (req, res) => res.json(loadDonations()));
 // POST new donation
 app.post('/api/donate', async (req, res) => {
   const cfg = loadConfig();
-  const { name, amount, message, ttsProvider: donorProvider, slipRef, epicStyle } = req.body;
+  const { name, amount, message, ttsProvider: donorProvider, slipRef, epicStyle, ttsStyle } = req.body;
 
   if (!name || !amount) return res.status(400).json({ error: 'Name and amount required' });
   if (Number(amount) < cfg.minDonate) {
@@ -460,6 +478,7 @@ app.post('/api/donate', async (req, res) => {
     message: (message || '').trim(),
     currency: cfg.currency,
     ttsProvider: resolvedProvider,
+    ttsStyle:    (ttsStyle || '').trim(),
     slipRef: slipRef || null,
     epicStyle: epicStyle || null,
     timestamp: new Date().toISOString(),
@@ -469,7 +488,7 @@ app.post('/api/donate', async (req, res) => {
   const ttsText = buildTtsText(cfg, donation);
   if (ttsText) {
     try {
-      audioBase64 = await generateTTS({ ...cfg, ttsProvider: resolvedProvider }, ttsText, donation.amount);
+      audioBase64 = await generateTTS({ ...cfg, ttsProvider: resolvedProvider }, ttsText, donation.amount, donation.ttsStyle);
     } catch (e) {
       console.error('TTS error:', e.response?.data || e.message);
     }
@@ -505,7 +524,7 @@ app.post('/api/test-alert', async (req, res) => {
   const ttsTextTest = buildTtsText(cfg, donation);
   if (ttsTextTest) {
     try {
-      audioBase64 = await generateTTS(cfg, ttsTextTest, donation.amount);
+      audioBase64 = await generateTTS(cfg, ttsTextTest, donation.amount, donation.ttsStyle || '');
     } catch (e) {
       console.error('TTS test error:', e.response?.data || e.message);
     }
@@ -534,7 +553,7 @@ app.post('/api/rerun/:id', async (req, res) => {
   let audioBase64 = null;
   const ttsText = buildTtsText(cfg, donation);
   if (ttsText) {
-    try { audioBase64 = await generateTTS(cfg, ttsText, donation.amount); }
+    try { audioBase64 = await generateTTS(cfg, ttsText, donation.amount, donation.ttsStyle || ''); }
     catch(e) { console.error('Rerun TTS error:', e.message); }
   }
 

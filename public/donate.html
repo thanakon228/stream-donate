@@ -409,6 +409,25 @@
   }
   .amount-lock-badge.show { display: inline; }
 
+  /* ── Speech Style Picker ──────────────────────────────── */
+  .style-chips { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
+  .style-chip {
+    background:var(--card2); border:1.5px solid var(--border); border-radius:20px;
+    color:var(--muted); cursor:pointer; font-family:'Kanit',sans-serif;
+    font-size:13px; padding:7px 14px; transition:all .2s; display:flex; align-items:center; gap:5px;
+  }
+  .style-chip:hover { border-color:var(--primary-light); color:var(--text); }
+  .style-chip.selected {
+    background:var(--selected-bg); border-color:var(--primary-light);
+    color:var(--primary-light);
+    box-shadow:0 0 10px color-mix(in srgb, var(--primary) 25%, transparent);
+  }
+  .style-hint {
+    font-size:11px; color:var(--muted); margin-top:8px; line-height:1.6;
+    padding:6px 10px; background:color-mix(in srgb,var(--primary) 6%,transparent);
+    border-radius:8px; border:1px solid color-mix(in srgb,var(--primary) 15%,transparent);
+  }
+
   /* ── Epic Alert Picker ─────────────────────────────────── */
   #epic-picker-card { display:none; }
   .epic-picker-banner {
@@ -552,6 +571,20 @@
         oninput="updateCharCount()"></textarea>
       <div class="char-count"><span id="charCount">0</span>/300</div>
     </div>
+    <!-- Speech style picker -->
+    <div class="input-group" style="margin-bottom:0">
+      <label>🎭 สไตล์การพูด</label>
+      <div class="style-chips" id="styleChips">
+        <button class="style-chip selected" data-style=""          onclick="selectStyle(this)">😐 ปกติ</button>
+        <button class="style-chip"          data-style="excited"   onclick="selectStyle(this)">⚡ ตื่นเต้น</button>
+        <button class="style-chip"          data-style="happy"     onclick="selectStyle(this)">😄 ดีใจ</button>
+        <button class="style-chip"          data-style="heartfelt" onclick="selectStyle(this)">💝 ซึ้งใจ</button>
+        <button class="style-chip"          data-style="sad"       onclick="selectStyle(this)">😢 เศร้า</button>
+        <button class="style-chip"          data-style="funny"     onclick="selectStyle(this)">😂 ขำขัน</button>
+        <button class="style-chip"          data-style="whisper"   onclick="selectStyle(this)">🤫 กระซิบ</button>
+      </div>
+      <div class="style-hint" id="styleHint" style="display:none"></div>
+    </div>
   </div>
 
   <!-- TTS Provider selector (shown only when both providers are configured) -->
@@ -617,6 +650,17 @@
 <script>
   // ── State ────────────────────────────────────────────────────
   let selectedTtsProvider = null;
+  let selectedStyle       = '';   // '' | 'excited' | 'happy' | 'heartfelt' | 'sad' | 'funny' | 'whisper'
+
+  const STYLE_META = {
+    '':          { hint: '' },
+    excited:     { hint: '⚡ พูดด้วยความตื่นเต้นและพลังงานสูง — ใส่ [excited] ในข้อความได้ด้วย' },
+    happy:       { hint: '😄 พูดด้วยความดีใจและร่าเริง — ใส่ [laughs] ในข้อความได้ด้วย' },
+    heartfelt:   { hint: '💝 พูดด้วยความซาบซึ้งและอบอุ่นใจ' },
+    sad:         { hint: '😢 พูดด้วยความเศร้าและอารมณ์ — ใส่ [sigh] ในข้อความได้ด้วย' },
+    funny:       { hint: '😂 พูดแบบขำขันและเล่นสนุก — ใส่ [laughs] ในข้อความได้ด้วย' },
+    whisper:     { hint: '🤫 กระซิบเบาๆ — ใส่ [whispering] ในข้อความได้ด้วย' },
+  };
   let cfgMinDonate        = 20;
   let cfgCurrency         = 'THB';
   let bothProvidersAvail  = false;
@@ -815,7 +859,21 @@
     });
   }
 
-  // ── Emotion / TTS ────────────────────────────────────────────
+  // ── Speech Style ─────────────────────────────────────────────
+  function selectStyle(el) {
+    document.querySelectorAll('.style-chip').forEach(b => b.classList.remove('selected'));
+    el.classList.add('selected');
+    selectedStyle = el.dataset.style;
+    const hintEl = document.getElementById('styleHint');
+    const meta   = STYLE_META[selectedStyle] || {};
+    if (meta.hint) {
+      hintEl.textContent   = meta.hint;
+      hintEl.style.display = '';
+    } else {
+      hintEl.style.display = 'none';
+    }
+  }
+
   // ── Epic Picker ──────────────────────────────────────────────
   function updateEpicPicker() {
     const card = document.getElementById('epic-picker-card');
@@ -970,6 +1028,7 @@
       const body = { name, amount: Number(amount), message };
       if (bothProvidersAvail && selectedTtsProvider) body.ttsProvider = selectedTtsProvider;
       if (slipVerified && slipTransRef)              body.slipRef     = slipTransRef;
+      if (selectedStyle)                             body.ttsStyle    = selectedStyle;
       // Pass chosen epic style only when the picker was visible
       if (epicEnabled && Number(amount) >= epicMinAmount) body.epicStyle = selectedEpicStyle;
 
@@ -989,6 +1048,12 @@
       document.getElementById('amountLockBadge').classList.remove('show');
       document.getElementById('donateMessage').value = '';
       updateCharCount(); syncQuickBtns(0);
+      // Reset style picker
+      selectedStyle = '';
+      document.querySelectorAll('.style-chip').forEach(b => b.classList.remove('selected'));
+      const normalBtn = document.querySelector('.style-chip[data-style=""]');
+      if (normalBtn) normalBtn.classList.add('selected');
+      document.getElementById('styleHint').style.display = 'none';
       // Reset epic picker
       selectedEpicStyle = 'random';
       document.querySelectorAll('.epic-btn').forEach(b => b.classList.remove('selected'));
