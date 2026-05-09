@@ -42,6 +42,7 @@ const DEFAULTS = {
   elevenLabsKey: '',
   voiceId: 'EXAVITQu4vr4xnSDxMaL',
   modelId: 'eleven_v3',
+  elevenLabsStyle: 0.45,             // 0-1: expressiveness (0=stable, 1=very expressive) — eleven_v3 only
   googleTtsKey: '',
   geminiApiKey: '',                  // Google AI Studio key (aistudio.google.com) — required for Gemini TTS
   googleTtsModel: '',               // '' = legacy Neural2  |  'gemini-2.5-flash-preview-tts' etc. = Gemini TTS
@@ -49,6 +50,7 @@ const DEFAULTS = {
   googleVoice: 'Kore',              // Gemini voice name
   googleLegacyVoice: 'th-TH-Neural2-C',  // Neural2 voice for small donations (free tier)
   googleLang: 'th-TH',
+  geminiTtsStyle: '',               // optional style instruction prepended to Gemini TTS text
   bot: {
     enabled: false,
     intervalMinutes: 5,
@@ -262,7 +264,13 @@ async function generateTTS(cfg, text, amount = 0) {
       {
         text,
         model_id: cfg.modelId || 'eleven_v3',
-        voice_settings: { stability: 0.5, similarity_boost: 0.75, style: 0.0, use_speaker_boost: true },
+        voice_settings: {
+          stability:        0.5,
+          similarity_boost: 0.75,
+          // style 0-1: expressiveness level — higher = more emotional/varied delivery
+          style:            Number(cfg.elevenLabsStyle) >= 0 ? Number(cfg.elevenLabsStyle) : 0.45,
+          use_speaker_boost: true,
+        },
       },
       {
         headers: {
@@ -305,7 +313,8 @@ async function generateTTS(cfg, text, amount = 0) {
         const res = await axios.post(
           `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent`,
           {
-            contents: [{ parts: [{ text }] }],
+            // Prepend optional style instruction so the model speaks with the right emotion
+        contents: [{ parts: [{ text: cfg.geminiTtsStyle ? `${cfg.geminiTtsStyle}: ${text}` : text }] }],
             generationConfig: {
               responseModalities: ['AUDIO'],
               speechConfig: {

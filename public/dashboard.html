@@ -739,6 +739,30 @@
           </select>
           <div id="model-desc" style="font-size:11px;color:var(--muted);margin-top:6px;padding:8px 10px;background:var(--card2);border-radius:8px;line-height:1.6"></div>
         </div>
+        <!-- ElevenLabs Expressiveness -->
+        <div class="form-group">
+          <label>ความแสดงออก (Style) <span id="eleven-style-val" style="color:var(--primary-light);font-weight:600">0.45</span>
+            <span style="font-size:11px;color:var(--muted)"> — 0 = นิ่ง/เรียบ, 1 = อารมณ์สูงมาก</span>
+          </label>
+          <input type="range" id="cfg-elevenStyle" min="0" max="1" step="0.05" value="0.45"
+            oninput="document.getElementById('eleven-style-val').textContent = Number(this.value).toFixed(2)"
+            style="width:100%;accent-color:var(--primary)">
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:2px">
+            <span>0 — เรียบ/มั่นคง</span><span>0.45 — แนะนำ</span><span>1 — อารมณ์สูงสุด</span>
+          </div>
+        </div>
+        <!-- Action Tags cheatsheet -->
+        <div style="padding:10px 12px;background:rgba(124,58,237,.07);border:1px solid rgba(124,58,237,.2);border-radius:8px;font-size:12px;line-height:2">
+          🎭 <strong>Action Tags</strong> (ใส่ในข้อความโดเนทได้เลย — ใช้ได้กับ eleven_v3 และ Gemini TTS)<br>
+          <code style="background:rgba(0,0,0,.3);padding:1px 6px;border-radius:4px">[laughs]</code>
+          <code style="background:rgba(0,0,0,.3);padding:1px 6px;border-radius:4px">[sigh]</code>
+          <code style="background:rgba(0,0,0,.3);padding:1px 6px;border-radius:4px">[excited]</code>
+          <code style="background:rgba(0,0,0,.3);padding:1px 6px;border-radius:4px">[whispering]</code>
+          <code style="background:rgba(0,0,0,.3);padding:1px 6px;border-radius:4px">[gasps]</code>
+          <code style="background:rgba(0,0,0,.3);padding:1px 6px;border-radius:4px">[crying]</code>
+          <code style="background:rgba(0,0,0,.3);padding:1px 6px;border-radius:4px">[clears throat]</code><br>
+          ตัวอย่าง: <em style="color:var(--muted)">[laughs] ขอบคุณมากนะครับ สตรีมดีมากจริงๆ [sigh] ประทับใจเลย</em>
+        </div>
       </div>
 
       <!-- Google TTS settings -->
@@ -839,6 +863,19 @@
             <code style="background:rgba(0,0,0,.3);padding:1px 5px;border-radius:4px">[shouting]</code>
             <code style="background:rgba(0,0,0,.3);padding:1px 5px;border-radius:4px">[uhm]</code>
             <code style="background:rgba(0,0,0,.3);padding:1px 5px;border-radius:4px">[short pause]</code>
+          </div>
+        </div>
+        <!-- Gemini style/emotion prompt (shown when Gemini selected) -->
+        <div id="google-gemini-style" style="display:none;margin-top:8px">
+          <div class="form-group">
+            <label>สไตล์การพูด (Gemini)
+              <span style="font-size:11px;color:var(--muted)"> — ใส่คำสั่งอารมณ์เป็นภาษาอังกฤษหรือไทยก็ได้</span>
+            </label>
+            <input type="text" id="cfg-geminiTtsStyle" placeholder="เช่น: Speak cheerfully and with excitement / พูดด้วยความดีใจและตื่นเต้น">
+            <div style="margin-top:5px;font-size:11px;color:var(--muted)">
+              ถ้าเว้นว่าง โมเดลจะตีความจากข้อความเองโดยอัตโนมัติ
+              · ใส่ action tag ในข้อความโดเนทได้โดยตรงเพื่อควบคุมเป็นจุดๆ
+            </div>
           </div>
         </div>
         <!-- TTS test / debug -->
@@ -1383,10 +1420,14 @@
     document.getElementById('cfg-apiKey').value   = cfg.elevenLabsKey || '';
     document.getElementById('cfg-voiceId').value  = cfg.voiceId || '';
     document.getElementById('cfg-modelId').value  = cfg.modelId || 'eleven_v3';
+    const styleVal = cfg.elevenLabsStyle ?? 0.45;
+    document.getElementById('cfg-elevenStyle').value = styleVal;
+    document.getElementById('eleven-style-val').textContent = Number(styleVal).toFixed(2);
     updateModelDesc();
     // Google
     document.getElementById('cfg-googleKey').value           = cfg.googleTtsKey        || '';
     document.getElementById('cfg-geminiKey').value           = cfg.geminiApiKey        || '';
+    document.getElementById('cfg-geminiTtsStyle').value      = cfg.geminiTtsStyle      || '';
     document.getElementById('cfg-googleTtsModel').value      = cfg.googleTtsModel      || '';
     document.getElementById('cfg-googleLang').value          = cfg.googleLang          || 'th-TH';
     document.getElementById('cfg-googleLegacyVoice').value   = cfg.googleLegacyVoice   || 'th-TH-Neural2-C';
@@ -1571,9 +1612,11 @@
       ttsProvider:   currentProvider,
       elevenLabsKey: document.getElementById('cfg-apiKey').value,
       voiceId:       document.getElementById('cfg-voiceId').value,
-      modelId:       document.getElementById('cfg-modelId').value,
+      modelId:           document.getElementById('cfg-modelId').value,
+      elevenLabsStyle:   Number(document.getElementById('cfg-elevenStyle').value),
       googleTtsKey:        document.getElementById('cfg-googleKey').value,
       geminiApiKey:        document.getElementById('cfg-geminiKey').value,
+      geminiTtsStyle:      document.getElementById('cfg-geminiTtsStyle').value,
       googleTtsModel:      document.getElementById('cfg-googleTtsModel').value,
       googleLang:          document.getElementById('cfg-googleLang').value,
       googleVoice:         document.getElementById('cfg-googleVoiceGemini').value || 'Kore',
@@ -2017,10 +2060,12 @@
     const isGemini = model.startsWith('gemini');
     const legacyEl   = document.getElementById('google-legacy-voices');
     const geminiEl   = document.getElementById('google-gemini-voices');
-    const geminiKeyEl = document.getElementById('fg-geminiKey');
-    if (legacyEl)   legacyEl.style.display   = isGemini ? 'none' : '';
-    if (geminiEl)   geminiEl.style.display   = isGemini ? ''     : 'none';
-    if (geminiKeyEl) geminiKeyEl.style.display = isGemini ? ''    : 'none';
+    const geminiKeyEl   = document.getElementById('fg-geminiKey');
+    const geminiStyleEl = document.getElementById('google-gemini-style');
+    if (legacyEl)      legacyEl.style.display      = isGemini ? 'none' : '';
+    if (geminiEl)      geminiEl.style.display      = isGemini ? ''     : 'none';
+    if (geminiKeyEl)   geminiKeyEl.style.display   = isGemini ? ''     : 'none';
+    if (geminiStyleEl) geminiStyleEl.style.display = isGemini ? ''     : 'none';
   }
 
   // ══ PAYMENT ACCOUNTS PAGE ══════════════════════════════════
