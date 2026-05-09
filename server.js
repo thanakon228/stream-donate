@@ -43,6 +43,7 @@ const DEFAULTS = {
   voiceId: 'EXAVITQu4vr4xnSDxMaL',
   modelId: 'eleven_multilingual_v2',
   googleTtsKey: '',
+  googleTtsModel: '',             // '' = legacy Neural2/WaveNet  |  'gemini-2.5-flash-tts' etc. = Gemini TTS
   googleVoice: 'th-TH-Neural2-C',
   googleLang: 'th-TH',
   bot: {
@@ -246,23 +247,27 @@ async function generateTTS(cfg, text) {
   }
 
   // ── Google TTS ──
-  // Google doesn't understand [laughs] etc. — strip action tags first
   if (provider === 'google') {
     if (!cfg.googleTtsKey) return null;
+
+    const isGemini = (cfg.googleTtsModel || '').startsWith('gemini');
+
+    // Gemini TTS: supports [laughs] [sigh] [whispering] etc. natively
+    // Legacy Neural2/WaveNet: strip action tags
+    const inputText = isGemini ? text : stripActionTags(text);
+
+    const voiceParams = {
+      languageCode: cfg.googleLang || 'th-TH',
+      name: cfg.googleVoice || (isGemini ? 'Kore' : 'th-TH-Neural2-C'),
+    };
+    if (isGemini) voiceParams.model_name = cfg.googleTtsModel;
+
     const res = await axios.post(
       `https://texttospeech.googleapis.com/v1/text:synthesize?key=${cfg.googleTtsKey}`,
       {
-        input: { text: stripActionTags(text) },
-        voice: {
-          languageCode: cfg.googleLang || 'th-TH',
-          name: cfg.googleVoice || 'th-TH-Neural2-C',
-        },
-        audioConfig: {
-          audioEncoding: 'MP3',
-          speakingRate: 1.0,
-          pitch:        0,
-          volumeGainDb: 0,
-        },
+        input: { text: inputText },
+        voice: voiceParams,
+        audioConfig: { audioEncoding: 'MP3' },
       },
       { headers: { 'Content-Type': 'application/json' } }
     );

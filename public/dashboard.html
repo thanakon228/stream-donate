@@ -752,8 +752,19 @@
           <input type="password" id="cfg-googleKey" placeholder="AIza...">
         </div>
         <div class="form-group">
+          <label>โมเดล TTS</label>
+          <select id="cfg-googleTtsModel" onchange="updateGoogleModelUI()">
+            <option value="">Legacy — Neural2 / WaveNet</option>
+            <optgroup label="✨ Gemini TTS (รองรับ [laughs] [sigh] ฯลฯ)">
+              <option value="gemini-2.5-flash-tts">gemini-2.5-flash-tts ⭐ แนะนำ</option>
+              <option value="gemini-2.5-pro-tts">gemini-2.5-pro-tts (คุณภาพสูงสุด)</option>
+              <option value="gemini-3.1-flash-tts-preview">gemini-3.1-flash-tts-preview (เร็ว)</option>
+            </optgroup>
+          </select>
+        </div>
+        <div class="form-group">
           <label>ภาษา</label>
-          <select id="cfg-googleLang" onchange="updateGoogleVoiceOptions()">
+          <select id="cfg-googleLang">
             <option value="th-TH">ไทย (th-TH)</option>
             <option value="en-US">English US (en-US)</option>
             <option value="en-GB">English UK (en-GB)</option>
@@ -762,22 +773,58 @@
             <option value="ko-KR">เกาหลี (ko-KR)</option>
           </select>
         </div>
-        <div class="form-group">
-          <label>เสียง</label>
-          <select id="cfg-googleVoice">
-            <optgroup label="ไทย — Neural2 (คุณภาพสูง)">
-              <option value="th-TH-Neural2-C">th-TH-Neural2-C (หญิง) ⭐</option>
-            </optgroup>
-            <optgroup label="ไทย — Standard">
-              <option value="th-TH-Standard-A">th-TH-Standard-A (หญิง)</option>
-            </optgroup>
-          </select>
+        <!-- Legacy voice picker -->
+        <div id="google-legacy-voices">
+          <div class="form-group">
+            <label>เสียง</label>
+            <select id="cfg-googleVoice">
+              <optgroup label="ไทย — Neural2 (คุณภาพสูง)">
+                <option value="th-TH-Neural2-C">th-TH-Neural2-C (หญิง) ⭐</option>
+              </optgroup>
+              <optgroup label="ไทย — Standard">
+                <option value="th-TH-Standard-A">th-TH-Standard-A (หญิง)</option>
+              </optgroup>
+            </select>
+          </div>
+          <button class="btn btn-outline btn-sm" onclick="fetchGoogleVoices()">🔍 โหลดเสียงทั้งหมด</button>
+          <div id="googleVoiceList"></div>
         </div>
-        <button class="btn btn-outline btn-sm" onclick="fetchGoogleVoices()">🔍 โหลดเสียงทั้งหมด</button>
-        <div id="googleVoiceList"></div>
+        <!-- Gemini voice picker -->
+        <div id="google-gemini-voices" style="display:none">
+          <div class="form-group">
+            <label>เสียง <span style="font-size:11px;color:var(--muted)">(Multilingual — พูดได้ทุกภาษา)</span></label>
+            <select id="cfg-googleVoiceGemini" onchange="document.getElementById('cfg-googleVoice').value=this.value">
+              <optgroup label="👩 หญิง">
+                <option value="Kore">Kore ⭐</option>
+                <option value="Callirrhoe">Callirrhoe</option>
+                <option value="Aoede">Aoede</option>
+                <option value="Leda">Leda</option>
+                <option value="Zephyr">Zephyr</option>
+                <option value="Schedar">Schedar</option>
+                <option value="Sulafat">Sulafat</option>
+              </optgroup>
+              <optgroup label="👨 ชาย">
+                <option value="Charon">Charon</option>
+                <option value="Fenrir">Fenrir</option>
+                <option value="Puck">Puck</option>
+                <option value="Orus">Orus</option>
+                <option value="Gacrux">Gacrux</option>
+                <option value="Achird">Achird</option>
+              </optgroup>
+            </select>
+          </div>
+          <div style="padding:10px;background:rgba(124,58,237,.08);border:1px solid rgba(124,58,237,.2);border-radius:8px;font-size:12px;color:#c4b5fd;line-height:1.7">
+            ✨ <strong>Gemini TTS รองรับ Action Tags:</strong><br>
+            <code style="background:rgba(0,0,0,.3);padding:1px 5px;border-radius:4px">[laughs]</code>
+            <code style="background:rgba(0,0,0,.3);padding:1px 5px;border-radius:4px">[sigh]</code>
+            <code style="background:rgba(0,0,0,.3);padding:1px 5px;border-radius:4px">[whispering]</code>
+            <code style="background:rgba(0,0,0,.3);padding:1px 5px;border-radius:4px">[shouting]</code>
+            <code style="background:rgba(0,0,0,.3);padding:1px 5px;border-radius:4px">[uhm]</code>
+            <code style="background:rgba(0,0,0,.3);padding:1px 5px;border-radius:4px">[short pause]</code>
+          </div>
+        </div>
         <div style="margin-top:12px;padding:10px;background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);border-radius:8px;font-size:12px;color:#93c5fd;line-height:1.6">
-          💡 <strong>วิธีสมัครฟรี:</strong> Google TTS ให้ฟรี <strong>4 ล้านตัวอักษร/เดือน</strong> (Standard) หรือ 1 ล้าน (WaveNet/Neural2)<br>
-          ไปที่ <a href="https://console.cloud.google.com" target="_blank" style="color:#60a5fa">console.cloud.google.com</a> → เปิด Cloud Text-to-Speech API → สร้าง API Key
+          💡 ไปที่ <a href="https://console.cloud.google.com" target="_blank" style="color:#60a5fa">console.cloud.google.com</a> → เปิด <strong>Cloud Text-to-Speech API</strong> → สร้าง API Key
         </div>
       </div>
 
@@ -1299,9 +1346,7 @@
     document.getElementById('btn-provider-elevenlabs').classList.toggle('active', p === 'elevenlabs');
     document.getElementById('btn-provider-google').classList.toggle('active', p === 'google');
     document.getElementById('section-elevenlabs').style.display = p === 'elevenlabs' ? '' : 'none';
-    document.getElementById('section-google').style.display      = p === 'google'      ? '' : 'none';
-    document.getElementById('em-section-elevenlabs').style.display = p === 'elevenlabs' ? '' : 'none';
-    document.getElementById('em-section-google').style.display     = p === 'google'     ? '' : 'none';
+    document.getElementById('section-google').style.display     = p === 'google'     ? '' : 'none';
   }
 
   // ── load config ──────────────────────────────────────────────
@@ -1317,9 +1362,14 @@
     document.getElementById('cfg-modelId').value  = cfg.modelId || 'eleven_multilingual_v2';
     updateModelDesc();
     // Google
-    document.getElementById('cfg-googleKey').value  = cfg.googleTtsKey || '';
-    document.getElementById('cfg-googleLang').value = cfg.googleLang || 'th-TH';
-    document.getElementById('cfg-googleVoice').value = cfg.googleVoice || 'th-TH-Neural2-C';
+    document.getElementById('cfg-googleKey').value        = cfg.googleTtsKey   || '';
+    document.getElementById('cfg-googleTtsModel').value   = cfg.googleTtsModel || '';
+    document.getElementById('cfg-googleLang').value       = cfg.googleLang     || 'th-TH';
+    document.getElementById('cfg-googleVoice').value      = cfg.googleVoice    || 'th-TH-Neural2-C';
+    // Sync Gemini voice picker to match saved voice
+    const geminiVoiceSel = document.getElementById('cfg-googleVoiceGemini');
+    if (geminiVoiceSel) geminiVoiceSel.value = cfg.googleVoice || 'Kore';
+    updateGoogleModelUI();
     // General
     document.getElementById('cfg-streamTitle').value   = cfg.streamTitle || '';
     document.getElementById('cfg-minDonate').value     = cfg.minDonate || 20;
@@ -1498,9 +1548,10 @@
       elevenLabsKey: document.getElementById('cfg-apiKey').value,
       voiceId:       document.getElementById('cfg-voiceId').value,
       modelId:       document.getElementById('cfg-modelId').value,
-      googleTtsKey:  document.getElementById('cfg-googleKey').value,
-      googleLang:    document.getElementById('cfg-googleLang').value,
-      googleVoice:   document.getElementById('cfg-googleVoice').value,
+      googleTtsKey:   document.getElementById('cfg-googleKey').value,
+      googleTtsModel: document.getElementById('cfg-googleTtsModel').value,
+      googleLang:     document.getElementById('cfg-googleLang').value,
+      googleVoice:    document.getElementById('cfg-googleVoice').value,
       streamTitle:   document.getElementById('cfg-streamTitle').value,
       minDonate:     Number(document.getElementById('cfg-minDonate').value),
       currency:      document.getElementById('cfg-currency').value,
@@ -1905,6 +1956,20 @@
 
   function updateGoogleVoiceOptions() {
     // Just a hint — actual list comes from fetchGoogleVoices
+  }
+
+  function updateGoogleModelUI() {
+    const model = document.getElementById('cfg-googleTtsModel')?.value || '';
+    const isGemini = model.startsWith('gemini');
+    const legacyEl  = document.getElementById('google-legacy-voices');
+    const geminiEl  = document.getElementById('google-gemini-voices');
+    if (legacyEl)  legacyEl.style.display  = isGemini ? 'none' : '';
+    if (geminiEl)  geminiEl.style.display  = isGemini ? ''     : 'none';
+    // Sync hidden cfg-googleVoice from whichever picker is active
+    if (isGemini) {
+      const v = document.getElementById('cfg-googleVoiceGemini')?.value || 'Kore';
+      document.getElementById('cfg-googleVoice').value = v;
+    }
   }
 
   // ══ PAYMENT ACCOUNTS PAGE ══════════════════════════════════
