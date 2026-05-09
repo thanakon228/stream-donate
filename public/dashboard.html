@@ -730,8 +730,8 @@
         <div class="form-group" style="margin-top:16px">
           <label>โมเดล TTS</label>
           <select id="cfg-modelId" onchange="updateModelDesc()">
-            <option value="eleven_v3">v3 — คุณภาพสูงสุด 🌟 รองรับภาษาไทย (ใหม่ล่าสุด)</option>
-            <option value="eleven_multilingual_v2">Multilingual v2 — รองรับภาษาไทย ✅ (แนะนำ)</option>
+            <option value="eleven_v3">v3 — รองรับ [laughs] [sigh] ✅ ⭐ แนะนำ</option>
+            <option value="eleven_multilingual_v2">Multilingual v2 — ภาษาไทย (ไม่รองรับ [laughs] ❌)</option>
             <option value="eleven_flash_v2_5">Flash v2.5 — เร็วสุด ⚡ ประหยัด Credits</option>
             <option value="eleven_turbo_v2_5">Turbo v2.5 — เร็ว + คุณภาพสูง 🚀</option>
             <option value="eleven_turbo_v2">Turbo v2 — English เร็ว (ไม่รองรับไทย)</option>
@@ -1371,7 +1371,7 @@
     // ElevenLabs
     document.getElementById('cfg-apiKey').value   = cfg.elevenLabsKey || '';
     document.getElementById('cfg-voiceId').value  = cfg.voiceId || '';
-    document.getElementById('cfg-modelId').value  = cfg.modelId || 'eleven_multilingual_v2';
+    document.getElementById('cfg-modelId').value  = cfg.modelId || 'eleven_v3';
     updateModelDesc();
     // Google
     document.getElementById('cfg-googleKey').value           = cfg.googleTtsKey        || '';
@@ -1540,8 +1540,8 @@
   }
 
   const MODEL_DESC = {
-    'eleven_v3':              '🌟 โมเดลใหม่ล่าสุด คุณภาพเสียงสูงสุด รองรับหลายภาษารวมถึงภาษาไทย — ใช้ Credits มากกว่า v2 เล็กน้อย',
-    'eleven_multilingual_v2': '🌍 รองรับ 29 ภาษารวมถึงภาษาไทย คุณภาพสูง ใช้ Credits ปานกลาง — <strong>แนะนำสำหรับสตรีมภาษาไทย</strong>',
+    'eleven_v3':              '🌟 โมเดลใหม่ล่าสุด — <strong style="color:#4ade80">รองรับ [laughs] [sigh] [whispering] ✅</strong> — คุณภาพเสียงสูงสุด รองรับ 70+ ภาษารวมถึงภาษาไทย <strong>แนะนำถ้าต้องการ Action Tags</strong>',
+    'eleven_multilingual_v2': '🌍 รองรับ 29 ภาษารวมถึงภาษาไทย คุณภาพสูง — <strong style="color:#f87171">ไม่รองรับ [laughs] Action Tags ❌</strong> — ใช้ Credits น้อยกว่า v3',
     'eleven_flash_v2_5':      '⚡ เร็วที่สุด ~75ms latency ประหยัด Credits มาก รองรับหลายภาษา เหมาะกับ Donate จำนวนมาก',
     'eleven_turbo_v2_5':      '🚀 สมดุลระหว่างความเร็วและคุณภาพ รองรับ 32 ภาษา ใช้ Credits น้อยกว่า Multilingual v2',
     'eleven_turbo_v2':        '🔤 English เท่านั้น เร็ว ประหยัด — ไม่แนะนำถ้าอ่านภาษาไทย',

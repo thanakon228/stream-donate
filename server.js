@@ -41,7 +41,7 @@ const DEFAULTS = {
   alertDuration: 8,
   elevenLabsKey: '',
   voiceId: 'EXAVITQu4vr4xnSDxMaL',
-  modelId: 'eleven_multilingual_v2',
+  modelId: 'eleven_v3',
   googleTtsKey: '',
   googleTtsModel: '',               // '' = legacy Neural2  |  'gemini-2.5-flash-tts' etc. = Gemini TTS
   googleTtsGeminiMin: 50,           // donations >= this amount use Gemini; below uses legacy (free)
@@ -276,11 +276,20 @@ async function generateTTS(cfg, text, amount = 0) {
 
     console.log(`[TTS] Google ${useGemini ? `Gemini(${geminiModel})` : 'Neural2'} | ฿${amount} | voice:${voiceName}`);
 
+    // Build input — Gemini supports a `prompt` field for style/expression guidance
+    // Without it, the model may read "[laughs]" as literal text
+    const ttsInput = useGemini
+      ? {
+          text:   inputText,
+          prompt: 'Speak naturally and expressively. Any text inside square brackets like [laughs], [sigh], [whispering] are stage directions — perform them as natural vocalizations, do NOT speak them aloud.',
+        }
+      : { text: inputText };
+
     try {
       const res = await axios.post(
         `https://texttospeech.googleapis.com/v1/text:synthesize?key=${cfg.googleTtsKey}`,
         {
-          input: { text: inputText },
+          input: ttsInput,
           voice: voiceParams,
           audioConfig: { audioEncoding: 'MP3' },
         },
