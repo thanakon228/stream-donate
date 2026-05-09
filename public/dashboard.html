@@ -1170,6 +1170,20 @@
           </p>
         </div>
 
+        <!-- Epic Alert tests -->
+        <div class="setting-card" style="margin-bottom:0;border:1px solid rgba(255,107,0,.25);background:rgba(255,107,0,.03)">
+          <h3>💥 ทดสอบ Epic Alert</h3>
+          <p style="font-size:12px;color:var(--muted);margin-bottom:12px">บังคับแสดง Epic โดยไม่สนยอดขั้นต่ำ — ใช้ข้อมูลจากฟอร์มด้านซ้าย</p>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">
+            <button class="btn btn-sm" style="background:rgba(120,0,255,.15);border:1px solid rgba(120,0,255,.35);color:#cc88ff" onclick="sendEpicTest('random')">🎲 สุ่ม</button>
+            <button class="btn btn-sm" style="background:rgba(255,100,0,.12);border:1px solid rgba(255,100,0,.35);color:#ff8844" onclick="sendEpicTest('1')">☄️ Meteor</button>
+            <button class="btn btn-sm" style="background:rgba(100,150,255,.12);border:1px solid rgba(100,150,255,.35);color:#88aaff" onclick="sendEpicTest('2')">⚡ Lightning</button>
+            <button class="btn btn-sm" style="background:rgba(255,60,0,.12);border:1px solid rgba(255,60,0,.35);color:#ff5533" onclick="sendEpicTest('3')">🐉 Dragon</button>
+            <button class="btn btn-sm" style="background:rgba(180,100,255,.12);border:1px solid rgba(180,100,255,.35);color:#cc88ff" onclick="sendEpicTest('4')">🌌 Galaxy</button>
+            <button class="btn btn-sm" style="background:rgba(0,255,150,.08);border:1px solid rgba(0,255,150,.3);color:#00ff96" onclick="sendEpicTest('5')">👾 Cyber</button>
+          </div>
+        </div>
+
       </div>
     </div>
   </div>
@@ -1910,6 +1924,17 @@
       body: JSON.stringify({ emotion:'excited', name, amount, message, forceAnimation: picked }),
     });
     if (r.ok) showToast(`🎬 Animation: ${picked}`);
+    else showToast('❌ เกิดข้อผิดพลาด', true);
+  }
+
+  const EPIC_NAMES = { random:'🎲 สุ่ม', 1:'☄️ Meteor', 2:'⚡ Lightning', 3:'🐉 Dragon', 4:'🌌 Galaxy', 5:'👾 Cyber' };
+  async function sendEpicTest(epicStyle) {
+    const { name, amount, message } = getTestInputs();
+    const r = await fetch('/api/test-alert', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ emotion:'excited', name, amount, message, forceEpic: true, epicStyle }),
+    });
+    if (r.ok) showToast(`💥 Epic Alert: ${EPIC_NAMES[epicStyle] || epicStyle}`);
     else showToast('❌ เกิดข้อผิดพลาด', true);
   }
 
