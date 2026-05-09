@@ -754,13 +754,24 @@
         <div class="form-group">
           <label>โมเดล TTS</label>
           <select id="cfg-googleTtsModel" onchange="updateGoogleModelUI()">
-            <option value="">Legacy — Neural2 / WaveNet</option>
-            <optgroup label="✨ Gemini TTS (รองรับ [laughs] [sigh] ฯลฯ)">
-              <option value="gemini-2.5-flash-tts">gemini-2.5-flash-tts ⭐ แนะนำ</option>
-              <option value="gemini-2.5-pro-tts">gemini-2.5-pro-tts (คุณภาพสูงสุด)</option>
-              <option value="gemini-3.1-flash-tts-preview">gemini-3.1-flash-tts-preview (เร็ว)</option>
+            <option value="">Legacy — Neural2 / WaveNet (ฟรี)</option>
+            <optgroup label="✨ Gemini TTS — รองรับ [laughs] [sigh] ฯลฯ (ต้องมี Gemini API Key)">
+              <option value="gemini-2.5-flash-preview-tts">gemini-2.5-flash-preview-tts ⭐ แนะนำ</option>
+              <option value="gemini-2.5-pro-preview-tts">gemini-2.5-pro-preview-tts (คุณภาพสูงสุด)</option>
+              <option value="gemini-3.1-flash-tts-preview">gemini-3.1-flash-tts-preview (เร็วที่สุด)</option>
             </optgroup>
           </select>
+        </div>
+        <!-- Gemini API Key — only needed when Gemini TTS model is selected -->
+        <div class="form-group" id="fg-geminiKey" style="display:none">
+          <label>Gemini API Key
+            <a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--primary-light);font-size:11px">→ รับฟรีที่ aistudio.google.com</a>
+          </label>
+          <input type="password" id="cfg-geminiKey" placeholder="AIza...">
+          <div style="margin-top:6px;font-size:11px;color:var(--muted);line-height:1.6">
+            ⚠️ ต่างจาก Cloud TTS Key — Gemini TTS ใช้ <strong>Gemini API</strong> (<code>generativelanguage.googleapis.com</code>) ซึ่งต้องการ key คนละตัว<br>
+            ✅ มี Free Tier ให้ใช้ฟรี — ไปขอได้ที่ Google AI Studio
+          </div>
         </div>
         <div class="form-group">
           <label>ภาษา</label>
@@ -1375,6 +1386,7 @@
     updateModelDesc();
     // Google
     document.getElementById('cfg-googleKey').value           = cfg.googleTtsKey        || '';
+    document.getElementById('cfg-geminiKey').value           = cfg.geminiApiKey        || '';
     document.getElementById('cfg-googleTtsModel').value      = cfg.googleTtsModel      || '';
     document.getElementById('cfg-googleLang').value          = cfg.googleLang          || 'th-TH';
     document.getElementById('cfg-googleLegacyVoice').value   = cfg.googleLegacyVoice   || 'th-TH-Neural2-C';
@@ -1561,6 +1573,7 @@
       voiceId:       document.getElementById('cfg-voiceId').value,
       modelId:       document.getElementById('cfg-modelId').value,
       googleTtsKey:        document.getElementById('cfg-googleKey').value,
+      geminiApiKey:        document.getElementById('cfg-geminiKey').value,
       googleTtsModel:      document.getElementById('cfg-googleTtsModel').value,
       googleLang:          document.getElementById('cfg-googleLang').value,
       googleVoice:         document.getElementById('cfg-googleVoiceGemini').value || 'Kore',
@@ -2000,12 +2013,14 @@
   }
 
   function updateGoogleModelUI() {
-    const model = document.getElementById('cfg-googleTtsModel')?.value || '';
+    const model    = document.getElementById('cfg-googleTtsModel')?.value || '';
     const isGemini = model.startsWith('gemini');
-    const legacyEl  = document.getElementById('google-legacy-voices');
-    const geminiEl  = document.getElementById('google-gemini-voices');
-    if (legacyEl)  legacyEl.style.display  = isGemini ? 'none' : '';
-    if (geminiEl)  geminiEl.style.display  = isGemini ? ''     : 'none';
+    const legacyEl   = document.getElementById('google-legacy-voices');
+    const geminiEl   = document.getElementById('google-gemini-voices');
+    const geminiKeyEl = document.getElementById('fg-geminiKey');
+    if (legacyEl)   legacyEl.style.display   = isGemini ? 'none' : '';
+    if (geminiEl)   geminiEl.style.display   = isGemini ? ''     : 'none';
+    if (geminiKeyEl) geminiKeyEl.style.display = isGemini ? ''    : 'none';
   }
 
   // ══ PAYMENT ACCOUNTS PAGE ══════════════════════════════════

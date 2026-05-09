@@ -43,7 +43,8 @@ const DEFAULTS = {
   voiceId: 'EXAVITQu4vr4xnSDxMaL',
   modelId: 'eleven_v3',
   googleTtsKey: '',
-  googleTtsModel: '',               // '' = legacy Neural2  |  'gemini-2.5-flash-tts' etc. = Gemini TTS
+  geminiApiKey: '',                  // Google AI Studio key (aistudio.google.com) — required for Gemini TTS
+  googleTtsModel: '',               // '' = legacy Neural2  |  'gemini-2.5-flash-preview-tts' etc. = Gemini TTS
   googleTtsGeminiMin: 50,           // donations >= this amount use Gemini; below uses legacy (free)
   googleVoice: 'Kore',              // Gemini voice name
   googleLegacyVoice: 'th-TH-Neural2-C',  // Neural2 voice for small donations (free tier)
@@ -159,6 +160,7 @@ function loadConfig() {
   if (e.ELEVEN_VOICE_ID)         cfg.voiceId            = e.ELEVEN_VOICE_ID;
   if (e.ELEVEN_MODEL_ID)         cfg.modelId            = e.ELEVEN_MODEL_ID;
   if (e.GOOGLE_TTS_KEY)          cfg.googleTtsKey       = e.GOOGLE_TTS_KEY;
+  if (e.GEMINI_API_KEY)          cfg.geminiApiKey       = e.GEMINI_API_KEY;
   if (e.GOOGLE_VOICE)            cfg.googleVoice        = e.GOOGLE_VOICE;
   if (e.GOOGLE_LANG)             cfg.googleLang         = e.GOOGLE_LANG;
   if (e.TTS_PROVIDER)            cfg.ttsProvider        = e.TTS_PROVIDER;
@@ -189,6 +191,7 @@ function getEnvFlags() {
     voiceId:       !!e.ELEVEN_VOICE_ID,
     modelId:       !!e.ELEVEN_MODEL_ID,
     googleTtsKey:  !!e.GOOGLE_TTS_KEY,
+    geminiApiKey:  !!e.GEMINI_API_KEY,
     googleVoice:   !!e.GOOGLE_VOICE,
     googleLang:    !!e.GOOGLE_LANG,
     ttsProvider:   !!e.TTS_PROVIDER,
@@ -222,19 +225,43 @@ function stripActionTags(text) {
   return text.replace(/\[[^\]]*\]/g, '').replace(/\s{2,}/g, ' ').trim();
 }
 
+// Wrap raw PCM audio (from Gemini API) in a WAV container for browser playback
+// Gemini TTS returns s16le PCM at 24 kHz mono
+function pcmToWav(pcmBuffer, sampleRate = 24000, numChannels = 1, bitDepth = 16) {
+  const dataSize   = pcmBuffer.length;
+  const byteRate   = sampleRate * numChannels * (bitDepth / 8);
+  const blockAlign = numChannels * (bitDepth / 8);
+  const header     = Buffer.alloc(44);
+  header.write('RIFF',                 0, 'ascii');
+  header.writeUInt32LE(36 + dataSize,  4);
+  header.write('WAVE',                 8, 'ascii');
+  header.write('fmt ',                12, 'ascii');
+  header.writeUInt32LE(16,            16);   // PCM sub-chunk size
+  header.writeUInt16LE(1,             20);   // AudioFormat = PCM
+  header.writeUInt16LE(numChannels,   22);
+  header.writeUInt32LE(sampleRate,    24);
+  header.writeUInt32LE(byteRate,      28);
+  header.writeUInt16LE(blockAlign,    32);
+  header.writeUInt16LE(bitDepth,      34);
+  header.write('data',                36, 'ascii');
+  header.writeUInt32LE(dataSize,      40);
+  return Buffer.concat([header, pcmBuffer]);
+}
+
 // amount = donation amount; used by Google TTS for tiered model selection
+// Returns base64 string (MP3 for ElevenLabs/Neural2, WAV for Gemini)
 async function generateTTS(cfg, text, amount = 0) {
   const provider = cfg.ttsProvider || 'elevenlabs';
 
   // ── ElevenLabs ──
-  // eleven_multilingual_v2+ supports [laughs] [sighs] [gasps] etc. natively
+  // eleven_v3 supports [laughs] [sighs] [gasps] etc.; earlier models do not
   if (provider === 'elevenlabs') {
     if (!cfg.elevenLabsKey) return null;
     const res = await axios.post(
       `https://api.elevenlabs.io/v1/text-to-speech/${cfg.voiceId}`,
       {
         text,
-        model_id: cfg.modelId || 'eleven_multilingual_v2',
+        model_id: cfg.modelId || 'eleven_v3',
         voice_settings: { stability: 0.5, similarity_boost: 0.75, style: 0.0, use_speaker_boost: true },
       },
       {
@@ -253,44 +280,69 @@ async function generateTTS(cfg, text, amount = 0) {
   if (provider === 'google') {
     if (!cfg.googleTtsKey) return null;
 
-    const geminiModel  = cfg.googleTtsModel || '';
-    const geminiMin    = Number(cfg.googleTtsGeminiMin) >= 0 ? Number(cfg.googleTtsGeminiMin) : 50;
+    const geminiModel = cfg.googleTtsModel || '';
+    const geminiMin   = Number(cfg.googleTtsGeminiMin) >= 0 ? Number(cfg.googleTtsGeminiMin) : 50;
     // Use Gemini only when model is configured AND donation meets the threshold
-    const useGemini    = geminiModel.startsWith('gemini') && amount >= geminiMin;
+    const useGemini   = geminiModel.startsWith('gemini') && amount >= geminiMin;
 
-    // Gemini supports action tags; legacy Neural2 does not — strip them
-    const inputText    = useGemini ? text : stripActionTags(text);
-
-    // Tiered voice: big donation → Gemini voice (e.g. Kore)
-    //               small donation → Neural2 legacy (free tier)
-    const voiceName    = useGemini
-      ? (cfg.googleVoice        || 'Kore')
-      : (cfg.googleLegacyVoice  || 'th-TH-Neural2-C');
-
-    const voiceParams = {
-      languageCode: cfg.googleLang || 'th-TH',
-      name: voiceName,
-    };
-    // ⚠️ Must be camelCase 'modelName' — Google REST API uses camelCase
-    if (useGemini) voiceParams.modelName = geminiModel;
+    const voiceName   = useGemini
+      ? (cfg.googleVoice       || 'Kore')
+      : (cfg.googleLegacyVoice || 'th-TH-Neural2-C');
 
     console.log(`[TTS] Google ${useGemini ? `Gemini(${geminiModel})` : 'Neural2'} | ฿${amount} | voice:${voiceName}`);
 
-    // Build input — Gemini supports a `prompt` field for style/expression guidance
-    // Without it, the model may read "[laughs]" as literal text
-    const ttsInput = useGemini
-      ? {
-          text:   inputText,
-          prompt: 'Speak naturally and expressively. Any text inside square brackets like [laughs], [sigh], [whispering] are stage directions — perform them as natural vocalizations, do NOT speak them aloud.',
-        }
-      : { text: inputText };
+    // ── Gemini TTS — Google AI Studio API (generativelanguage.googleapis.com) ──
+    // Requires a Gemini API key from aistudio.google.com (different from Cloud TTS key)
+    // Cloud TTS API keys cannot auth Vertex AI predictions — use Generative Language API instead
+    // Returns raw PCM → we wrap it in WAV for browser playback
+    if (useGemini) {
+      const geminiKey = cfg.geminiApiKey || '';
+      if (!geminiKey) {
+        console.error('[TTS] Gemini TTS requires a Gemini API key (geminiApiKey). Get one free at aistudio.google.com');
+        throw new Error('Gemini API key (geminiApiKey) not configured — get one free at aistudio.google.com');
+      }
+      try {
+        const res = await axios.post(
+          `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent`,
+          {
+            contents: [{ parts: [{ text }] }],
+            generationConfig: {
+              responseModalities: ['AUDIO'],
+              speechConfig: {
+                voiceConfig: {
+                  prebuiltVoiceConfig: { voiceName },
+                },
+              },
+            },
+          },
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              'x-goog-api-key': geminiKey,
+            },
+          }
+        );
+        const inlineData = res.data?.candidates?.[0]?.content?.parts?.[0]?.inlineData;
+        if (!inlineData?.data) throw new Error('Gemini TTS: ไม่ได้รับข้อมูลเสียงในการตอบกลับ');
+        // Convert raw PCM → WAV so browsers can play it
+        const pcmBuffer  = Buffer.from(inlineData.data, 'base64');
+        const wavBuffer  = pcmToWav(pcmBuffer);
+        return wavBuffer.toString('base64');
+      } catch (e) {
+        const errDetail = e.response?.data?.error;
+        console.error('[TTS] Gemini error:', errDetail?.message || e.message, '| status:', e.response?.status);
+        throw e;
+      }
+    }
 
+    // ── Legacy Neural2 / WaveNet — Cloud TTS API (free tier, no action tags) ──
+    const inputText = stripActionTags(text);
     try {
       const res = await axios.post(
         `https://texttospeech.googleapis.com/v1/text:synthesize?key=${cfg.googleTtsKey}`,
         {
-          input: ttsInput,
-          voice: voiceParams,
+          input: { text: inputText },
+          voice: { languageCode: cfg.googleLang || 'th-TH', name: voiceName },
           audioConfig: { audioEncoding: 'MP3' },
         },
         { headers: { 'Content-Type': 'application/json' } }
@@ -298,7 +350,7 @@ async function generateTTS(cfg, text, amount = 0) {
       return res.data.audioContent || null;
     } catch (e) {
       const errDetail = e.response?.data?.error;
-      console.error('[TTS] Google error:', errDetail?.message || e.message, '| status:', e.response?.status);
+      console.error('[TTS] Neural2 error:', errDetail?.message || e.message, '| status:', e.response?.status);
       throw e;
     }
   }

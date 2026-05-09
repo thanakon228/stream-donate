@@ -464,6 +464,14 @@
   let epicAlertConfig = { enabled: false, minAmount: 50, style: 'random' };
 
   // ── Audio helpers ────────────────────────────────────────
+  // Detect MIME type from base64 header:
+  //   WAV starts with "RIFF" → base64 prefix "UklGR"
+  //   MP3 starts with ID3 or sync bytes → anything else
+  function audioDataUrl(b64) {
+    const mime = b64 && b64.startsWith('UklGR') ? 'audio/wav' : 'audio/mpeg';
+    return `data:${mime};base64,${b64}`;
+  }
+
   // Loads audio src and waits for metadata (with 5s timeout fallback).
   // Calls onDuration(ms) once duration is known.
   function loadAudio(audioEl, src, onDuration) {
@@ -572,7 +580,7 @@
       const audio = document.getElementById('ttsAudio');
       let audioDuration = 0;
       if (donation.audioBase64) {
-        await loadAudio(audio, 'data:audio/mpeg;base64,' + donation.audioBase64,
+        await loadAudio(audio, audioDataUrl(donation.audioBase64),
           (dur) => { audioDuration = dur; });
         playAudio(audio);
       } else {
@@ -712,7 +720,7 @@
       let   audioDuration = 0;
 
       if (donation.audioBase64) {
-        await loadAudio(audio, 'data:audio/mpeg;base64,' + donation.audioBase64,
+        await loadAudio(audio, audioDataUrl(donation.audioBase64),
           (dur) => { audioDuration = dur; });
         speakingEl.classList.add('active');
         audio.onended = () => speakingEl.classList.remove('active');
