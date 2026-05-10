@@ -496,14 +496,16 @@
     });
   }
 
-  // Plays audio and logs any error (e.g. autoplay blocked, OBS policy).
+  // Plays audio — retries once after user interaction if blocked by autoplay policy.
   function playAudio(audioEl) {
     const p = audioEl.play();
     if (p && typeof p.catch === 'function') {
       p.catch(e => {
-        console.warn('[TTS] audio.play() failed:', e.name, '—', e.message);
-        // NotAllowedError = autoplay blocked by browser/OBS policy
-        // In OBS: Properties → check "Control audio via OBS" or use Interact mode
+        console.warn('[TTS] audio.play() blocked:', e.name, '— waiting for user interaction');
+        // Wait for next click (unlock) then retry
+        document.addEventListener('click', () => {
+          audioEl.play().catch(e2 => console.warn('[TTS] retry failed:', e2.message));
+        }, { once: true });
       });
     }
   }
@@ -751,6 +753,49 @@
   }
 
   loadConfig();
+
+  // ── Audio unlock (Browser Autoplay Policy) ───────────────
+  // Browsers block audio.play() until user interacts with the page.
+  // Show a small banner; first click anywhere unlocks audio for the session.
+  let audioUnlocked = false;
+
+  const unlockBanner = document.createElement('div');
+  unlockBanner.id = 'audio-unlock-banner';
+  Object.assign(unlockBanner.style, {
+    position: 'fixed', bottom: '12px', left: '50%', transform: 'translateX(-50%)',
+    background: 'rgba(0,0,0,0.75)', color: '#fff', padding: '8px 18px',
+    borderRadius: '20px', fontSize: '13px', cursor: 'pointer',
+    zIndex: '9999', backdropFilter: 'blur(6px)', userSelect: 'none',
+    border: '1px solid rgba(255,255,255,0.2)', transition: 'opacity .4s',
+  });
+  unlockBanner.textContent = '🔊 คลิกเพื่อเปิดเสียง';
+  document.body.appendChild(unlockBanner);
+
+  function unlockAudio() {
+    if (audioUnlocked) return;
+    audioUnlocked = true;
+    // Play a silent buffer to satisfy browser autoplay policy
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const buf = ctx.createBuffer(1, 1, 22050);
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.connect(ctx.destination);
+    src.start(0);
+    ctx.close();
+    unlockBanner.style.opacity = '0';
+    setTimeout(() => unlockBanner.remove(), 500);
+  }
+
+  document.addEventListener('click', unlockAudio, { once: false });
+  // Auto-attempt after 1s in case OBS allows it (some versions do)
+  setTimeout(() => {
+    if (!audioUnlocked) {
+      const a = new Audio();
+      a.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
+      a.volume = 0;
+      a.play().then(() => { audioUnlocked = true; unlockBanner.style.opacity = '0'; setTimeout(() => unlockBanner.remove(), 500); }).catch(() => {});
+    }
+  }, 1000);
 </script>
 </body>
 </html>
