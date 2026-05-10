@@ -657,8 +657,20 @@
     if (!isShowing && !isPaused) processQueue();
   });
 
+  let _nextQueueTimer = null;
+
+  function scheduleNext() {
+    clearTimeout(_nextQueueTimer);
+    if (isPaused) { isShowing = false; return; }
+    _nextQueueTimer = setTimeout(processQueue, 800);
+  }
+
   socket.on('queue_pause', () => {
     isPaused = true;
+    clearTimeout(_nextQueueTimer);   // ยกเลิก timer ที่รออยู่ทันที
+    _nextQueueTimer = null;
+    // ถ้าไม่มี alert แสดงอยู่ ให้ reset isShowing เลย
+    if (!isShowing) { /* already idle */ }
     const ind = document.getElementById('pause-indicator');
     if (ind) ind.style.display = 'flex';
   });
@@ -667,7 +679,7 @@
     isPaused = false;
     const ind = document.getElementById('pause-indicator');
     if (ind) ind.style.display = 'none';
-    if (!isShowing) processQueue();
+    if (!isShowing) processQueue();  // ถ้าไม่มีอะไรแสดงอยู่ เริ่มเล่นต่อทันที
   });
 
   setInterval(loadConfig, 30000);
@@ -688,7 +700,12 @@
     const donation = queue.shift();
     updateQueueBadge();
     await showAlert(donation);
-    setTimeout(processQueue, 800);
+    // ตรวจ isPaused ทันทีหลัง alert จบ ก่อนตั้ง timer
+    if (isPaused) {
+      isShowing = false;   // reset ให้ resume handler เรียก processQueue ได้
+    } else {
+      scheduleNext();
+    }
   }
 
   function pickAnimation() {
