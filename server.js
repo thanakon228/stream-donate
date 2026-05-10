@@ -17,14 +17,20 @@ const upload = multer({
   },
 });
 
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
+
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: { origin: '*' },
+  cors: allowedOrigins.length ? { origin: allowedOrigins } : { origin: '*' },
   transports: ['websocket', 'polling'],
 });
 
-app.use(cors());
+app.use(cors(
+  allowedOrigins.length
+    ? { origin: (origin, cb) => { if (!origin || allowedOrigins.includes(origin)) cb(null, true); else cb(new Error('CORS not allowed')); } }
+    : {}
+));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('/', (req, res) => res.redirect('/donate.html'));
@@ -156,8 +162,15 @@ function loadConfig() {
     cfg = base;
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(cfg, null, 2));
   } else {
-    const saved = JSON.parse(fs.readFileSync(CONFIG_FILE));
-    cfg = deepMerge(base, saved);
+    try {
+      const saved = JSON.parse(fs.readFileSync(CONFIG_FILE));
+      cfg = deepMerge(base, saved);
+    } catch (err) {
+      console.error('⚠️  config.json is corrupted, resetting to defaults:', err.message);
+      try { fs.renameSync(CONFIG_FILE, CONFIG_FILE + '.bak'); } catch (_) {}
+      cfg = base;
+      fs.writeFileSync(CONFIG_FILE, JSON.stringify(cfg, null, 2));
+    }
   }
 
   // ── Priority 3: individual env vars (highest priority, override everything) ──
@@ -211,7 +224,9 @@ function getEnvFlags() {
 }
 
 function saveConfig(cfg) {
-  fs.writeFileSync(CONFIG_FILE, JSON.stringify(cfg, null, 2));
+  const tmp = CONFIG_FILE + '.tmp';
+  fs.writeFileSync(tmp, JSON.stringify(cfg, null, 2));
+  fs.renameSync(tmp, CONFIG_FILE);
 }
 
 function loadDonations() {
@@ -222,8 +237,35 @@ function loadDonations() {
 function saveDonation(d) {
   const list = loadDonations();
   list.unshift(d);
-  fs.writeFileSync(DONATIONS_FILE, JSON.stringify(list.slice(0, 500), null, 2));
+  const tmp = DONATIONS_FILE + '.tmp';
+  fs.writeFileSync(tmp, JSON.stringify(list.slice(0, 500), null, 2));
+  fs.renameSync(tmp, DONATIONS_FILE);
 }
+
+// ─── Auth & Rate Limiting ────────────────────────────────────────────────────
+
+function requireAuth(req, res, next) {
+  const token = process.env.ADMIN_TOKEN;
+  if (!token) return next(); // ถ้าไม่ได้ตั้ง ADMIN_TOKEN → เปิดอยู่ (แจ้งเตือนตอน startup)
+  const provided = req.headers['x-admin-token'] || req.query.token;
+  if (provided !== token) return res.status(403).json({ error: 'Unauthorized — ต้องใช้ ADMIN_TOKEN' });
+  next();
+}
+
+const _rateLimitMap = new Map();
+function makeRateLimit(windowMs, max) {
+  return (req, res, next) => {
+    const key = req.ip;
+    const now = Date.now();
+    const hits = (_rateLimitMap.get(key) || []).filter(t => now - t < windowMs);
+    hits.push(now);
+    _rateLimitMap.set(key, hits);
+    if (hits.length > max) return res.status(429).json({ error: 'Too many requests — กรุณารอสักครู่' });
+    next();
+  };
+}
+const limitDonate = makeRateLimit(60_000, 10);  // 10 ครั้ง/นาที
+const limitTts    = makeRateLimit(60_000, 15);  // 15 ครั้ง/นาที
 
 // ─── TTS Helper ─────────────────────────────────────────────────────────────
 
@@ -399,13 +441,13 @@ async function generateTTS(cfg, text, amount = 0, ttsStyle = '') {
     const inputText = stripActionTags(text);
     try {
       const res = await axios.post(
-        `https://texttospeech.googleapis.com/v1/text:synthesize?key=${cfg.googleTtsKey}`,
+        'https://texttospeech.googleapis.com/v1/text:synthesize',
         {
           input: { text: inputText },
           voice: { languageCode: cfg.googleLang || 'th-TH', name: voiceName },
           audioConfig: { audioEncoding: 'MP3' },
         },
-        { headers: { 'Content-Type': 'application/json' } }
+        { headers: { 'Content-Type': 'application/json', 'x-goog-api-key': cfg.googleTtsKey } }
       );
       return res.data.audioContent || null;
     } catch (e) {
@@ -422,7 +464,7 @@ async function generateTTS(cfg, text, amount = 0, ttsStyle = '') {
 
 // GET /api/config/export — returns full config as Railway Raw env var string
 // Usage: copy the value of CONFIG= and paste into Railway → Variables → Raw Editor
-app.get('/api/config/export', (req, res) => {
+app.get('/api/config/export', requireAuth, (req, res) => {
   const cfg = loadConfig();
   // Strip nothing — export full config including API keys (for Railway secure storage)
   const json = JSON.stringify(cfg);
@@ -451,14 +493,14 @@ app.get('/api/config', (req, res) => {
   });
 });
 
-app.get('/api/config/full', (req, res) => {
+app.get('/api/config/full', requireAuth, (req, res) => {
   res.json({ ...loadConfig(), _envFlags: getEnvFlags() });
 });
 
 // POST /api/config/reset — wipe config.json and reload from CONFIG env var
 // Use this when you've updated CONFIG in Railway Variables and want it applied NOW
 // without waiting for a fresh redeploy
-app.post('/api/config/reset', (req, res) => {
+app.post('/api/config/reset', requireAuth, (req, res) => {
   try {
     if (fs.existsSync(CONFIG_FILE)) fs.unlinkSync(CONFIG_FILE);
     const cfg = loadConfig();   // recreates config.json from CONFIG env var + DEFAULTS
@@ -472,7 +514,7 @@ app.post('/api/config/reset', (req, res) => {
 // Unlike /api/config (partial merge), this starts from DEFAULTS then overlays the imported data.
 // API keys present in the file are accepted; missing keys fall back to the current saved value
 // so you never accidentally wipe a key just because the export was done on a machine that masked it.
-app.post('/api/config/import', (req, res) => {
+app.post('/api/config/import', requireAuth, (req, res) => {
   try {
     const current = loadConfig();
     const body    = { ...req.body };
@@ -516,7 +558,7 @@ app.post('/api/config/import', (req, res) => {
   }
 });
 
-app.post('/api/config', (req, res) => {
+app.post('/api/config', requireAuth, (req, res) => {
   const current = loadConfig();
   const body    = { ...req.body };
 
@@ -555,14 +597,20 @@ app.post('/api/config', (req, res) => {
 app.get('/api/donations', (req, res) => res.json(loadDonations()));
 
 // POST new donation
-app.post('/api/donate', async (req, res) => {
+app.post('/api/donate', limitDonate, async (req, res) => {
   const cfg = loadConfig();
   const { name, amount, message, ttsProvider: donorProvider, slipRef, epicStyle, ttsStyle } = req.body;
 
   if (!name || !amount) return res.status(400).json({ error: 'Name and amount required' });
+  const MAX_AMOUNT = 999999;
+  const MAX_NAME   = 100;
+  const MAX_MSG    = 500;
   if (Number(amount) < cfg.minDonate) {
     return res.status(400).json({ error: `Minimum donation is ${cfg.minDonate} ${cfg.currency}` });
   }
+  if (Number(amount) > MAX_AMOUNT) return res.status(400).json({ error: `ยอดบริจาคสูงสุดคือ ${MAX_AMOUNT.toLocaleString()}` });
+  if (name.length > MAX_NAME) return res.status(400).json({ error: `ชื่อต้องไม่เกิน ${MAX_NAME} ตัวอักษร` });
+  if (message && message.length > MAX_MSG) return res.status(400).json({ error: `ข้อความต้องไม่เกิน ${MAX_MSG} ตัวอักษร` });
   // Slip verification gate — block if required and no ref provided
   if (cfg.slipVerify?.enabled && cfg.slipVerify?.required && !slipRef) {
     return res.status(400).json({ error: 'กรุณาแนบสลิปและยืนยันก่อนส่งการบริจาค' });
@@ -607,7 +655,7 @@ app.post('/api/donate', async (req, res) => {
 });
 
 // POST test alert
-app.post('/api/test-alert', async (req, res) => {
+app.post('/api/test-alert', requireAuth, limitTts, async (req, res) => {
   const cfg = loadConfig();
   const { name, amount, message, ttsOnly = false, forceAnimation, epicStyle, forceEpic = false } = req.body;
 
@@ -648,7 +696,7 @@ app.post('/api/test-alert', async (req, res) => {
 });
 
 // POST rerun donation by id — re-emit existing donation with fresh TTS
-app.post('/api/rerun/:id', async (req, res) => {
+app.post('/api/rerun/:id', requireAuth, async (req, res) => {
   const cfg  = loadConfig();
   const list = loadDonations();
   const donation = list.find(d => String(d.id) === String(req.params.id));
@@ -810,7 +858,8 @@ app.get('/api/google-voices', async (req, res) => {
   if (!cfg.googleTtsKey) return res.json([]);
   try {
     const r = await axios.get(
-      `https://texttospeech.googleapis.com/v1/voices?key=${cfg.googleTtsKey}`
+      'https://texttospeech.googleapis.com/v1/voices',
+      { headers: { 'x-goog-api-key': cfg.googleTtsKey } }
     );
     const voices = (r.data.voices || []).filter(v =>
       v.languageCodes?.some(lc => lc.startsWith('th') || lc.startsWith('en'))
@@ -823,7 +872,7 @@ app.get('/api/google-voices', async (req, res) => {
 
 // POST /api/test-tts — generate TTS for a test phrase and return result or error message
 // Used by dashboard to diagnose TTS issues without firing an overlay alert
-app.post('/api/test-tts', async (req, res) => {
+app.post('/api/test-tts', requireAuth, limitTts, async (req, res) => {
   const cfg = loadConfig();
   const { text = 'สวัสดีครับ [laughs] ขอบคุณมากเลยนะครับ', amount = 99 } = req.body;
   try {
@@ -926,17 +975,17 @@ app.get('/api/bot/status', (req, res) => {
   });
 });
 
-app.post('/api/bot/start', (req, res) => {
+app.post('/api/bot/start', requireAuth, (req, res) => {
   startBot();
   res.json({ ok: true, running: botTimer !== null });
 });
 
-app.post('/api/bot/stop', (req, res) => {
+app.post('/api/bot/stop', requireAuth, (req, res) => {
   stopBot();
   res.json({ ok: true, running: false });
 });
 
-app.post('/api/bot/fire', async (req, res) => {
+app.post('/api/bot/fire', requireAuth, async (req, res) => {
   await fireBotDonation();
   res.json({ ok: true });
 });
@@ -951,6 +1000,12 @@ io.on('connection', (socket) => {
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`\n🎉 Donation Server running!\n   Donate page  : http://localhost:${PORT}/donate.html\n   Overlay (OBS) : http://localhost:${PORT}/overlay.html\n   Dashboard     : http://localhost:${PORT}/dashboard.html\n`);
+  if (!process.env.ADMIN_TOKEN) {
+    console.warn('⚠️  ADMIN_TOKEN ไม่ได้ตั้งค่า — endpoint /api/config และ /api/bot เปิดให้เข้าถึงได้โดยไม่ต้องยืนยันตัวตน!');
+  }
+  if (allowedOrigins.length) {
+    console.log(`🔒 CORS จำกัดเฉพาะ: ${allowedOrigins.join(', ')}`);
+  }
   // Auto-start bot if it was enabled
   const botCfg = loadConfig().bot;
   if (botCfg?.enabled && botCfg?.messages?.length) startBot(botCfg);

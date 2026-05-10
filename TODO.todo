@@ -1,0 +1,9 @@
+Stream-Donate — Security & Bug Fixes:
+  ✔ [HIGH] แก้ config.json crash เมื่อไฟล์เสียหาย — ใส่ try-catch รอบ JSON.parse ใน loadConfig() @server @done
+  ✔ [HIGH] ย้าย Google TTS API Key จาก querystring ไปใส่ใน request header แทน @server @done
+  ✔ [HIGH] เพิ่ม Admin authentication middleware สำหรับ /api/config/* และ /api/bot/* @server @done
+  ✔ [HIGH] แก้ XSS ใน donate.html — escape ข้อมูลจาก EasySlip ก่อนใส่ใน innerHTML @frontend @done
+  ✔ [MED] เพิ่ม rate limiting บน /api/donate, /api/test-tts, /api/test-alert @server @done
+  ✔ [MED] เพิ่ม server-side validation: amount (มี max), name และ message (มี max length) @server @done
+  ✔ [MED] จำกัด CORS origin จาก * ให้เป็น whitelist ของ domain จริง @server @done
+  ✔ [LOW] เปลี่ยน file write จาก synchronous เป็น async atomic write (write-then-rename) @server @done
