@@ -358,6 +358,14 @@
 
   .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
 
+  .pos-btn {
+    aspect-ratio:1; width:100%; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12);
+    border-radius:8px; color:rgba(255,255,255,.5); font-size:18px; cursor:pointer;
+    transition:all .15s; display:flex; align-items:center; justify-content:center;
+  }
+  .pos-btn:hover { background:rgba(124,58,237,.3); border-color:#7c3aed; color:#fff; }
+  .pos-btn.active { background:#7c3aed; border-color:#a78bfa; color:#fff; }
+
   /* voice selector */
   #voiceList { max-height: 200px; overflow-y: auto; margin-top: 8px; }
   .voice-item {
@@ -913,6 +921,24 @@
       </div>
     </div>
 
+    <!-- Overlay Position -->
+    <div class="setting-card full" style="margin-top:8px;border:1px solid rgba(124,58,237,.25);background:rgba(124,58,237,.03)">
+      <h3>📍 ตำแหน่ง Alert ใน Overlay</h3>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px">เลือกมุมที่ต้องการให้ alert และ epic alert ปรากฏ</p>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;max-width:240px" id="position-grid">
+        <button class="pos-btn" data-pos="top-left"      onclick="setOverlayPosition(this)">↖</button>
+        <button class="pos-btn" data-pos="top-center"    onclick="setOverlayPosition(this)">↑</button>
+        <button class="pos-btn" data-pos="top-right"     onclick="setOverlayPosition(this)">↗</button>
+        <button class="pos-btn" data-pos="middle-left"   onclick="setOverlayPosition(this)">←</button>
+        <button class="pos-btn" data-pos="middle-center" onclick="setOverlayPosition(this)">✛</button>
+        <button class="pos-btn" data-pos="middle-right"  onclick="setOverlayPosition(this)">→</button>
+        <button class="pos-btn" data-pos="bottom-left"   onclick="setOverlayPosition(this)">↙</button>
+        <button class="pos-btn" data-pos="bottom-center" onclick="setOverlayPosition(this)">↓</button>
+        <button class="pos-btn" data-pos="bottom-right"  onclick="setOverlayPosition(this)">↘</button>
+      </div>
+      <div style="margin-top:10px;font-size:12px;color:var(--muted)">ตำแหน่งปัจจุบัน: <span id="pos-label" style="color:var(--accent);font-weight:600">bottom-center</span></div>
+    </div>
+
     <!-- Epic Alert Settings -->
     <div class="setting-card full" style="margin-top:8px;border:1px solid rgba(255,107,0,.25);background:rgba(255,107,0,.03)">
       <h3>💥 Epic Alert — แสดงเอฟเฟกต์พิเศษเมื่อโดเนทสูง</h3>
@@ -1010,6 +1036,38 @@
       </div>
       <div class="btn-row" style="margin-top:14px">
         <button class="btn btn-primary" onclick="saveSlipSettings()">💾 บันทึกการตั้งค่าสลิป</button>
+      </div>
+    </div>
+
+    <!-- Webhook Settings -->
+    <div class="setting-card full" style="margin-top:8px;border:1px solid rgba(34,197,94,.25);background:rgba(34,197,94,.03)">
+      <h3>🔗 Webhook — ส่ง event ออกไปยังเว็บอื่น</h3>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px">
+        ทุกครั้งที่มี donation ใหม่ server จะ POST JSON ไปยัง URL ที่กำหนด — ใช้เชื่อมกับ Discord Bot, custom overlay, หรือระบบอื่น
+      </p>
+      <div style="display:grid;grid-template-columns:auto 1fr 1fr;gap:12px;align-items:end;flex-wrap:wrap">
+        <div class="form-group" style="margin-bottom:0">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+            <input type="checkbox" id="cfg-webhookEnabled" style="width:auto;accent-color:#22c55e">
+            <strong>เปิด Webhook</strong>
+          </label>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label>Webhook URL</label>
+          <input type="url" id="cfg-webhookUrl" placeholder="https://your-site.com/webhook">
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label>Secret (HMAC-SHA256) <span style="font-size:10px;color:var(--muted)">ไม่บังคับ</span></label>
+          <input type="password" id="cfg-webhookSecret" placeholder="signing secret">
+        </div>
+      </div>
+      <div style="margin-top:14px;padding:10px 14px;background:rgba(34,197,94,.06);border-radius:8px;font-size:12px;color:rgba(255,255,255,.5);line-height:1.8">
+        📦 Payload: <code style="background:rgba(255,255,255,.06);padding:1px 4px;border-radius:3px">{"event":"donation.new","data":{name,amount,currency,message,...},"timestamp":"..."}</code><br>
+        🔐 Header: <code style="background:rgba(255,255,255,.06);padding:1px 4px;border-radius:3px">X-Stream-Donate-Signature: sha256=&lt;hmac&gt;</code> (ถ้าตั้ง Secret)
+      </div>
+      <div class="btn-row" style="margin-top:12px">
+        <button class="btn btn-success" onclick="saveWebhookSettings()">💾 บันทึก Webhook</button>
+        <button class="btn btn-outline" onclick="testWebhook()">📡 ทดสอบ Webhook</button>
       </div>
     </div>
 
@@ -1143,6 +1201,21 @@
 
       </div>
     </div>
+
+    <!-- Queue Pause / Resume -->
+    <div class="setting-card full" style="margin-top:20px;border:1px solid rgba(251,191,36,.25);background:rgba(251,191,36,.03)">
+      <h3>⏸ หยุด / เล่น Alert Queue</h3>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:14px">
+        หยุดการแสดง Alert ชั่วคราว — donation ที่เข้ามาจะรอในคิวและแสดงเมื่อกด Resume
+        <br>Stream Deck: POST <code style="font-size:11px;background:rgba(255,255,255,.06);padding:1px 5px;border-radius:4px">/api/queue/pause</code> / <code style="font-size:11px;background:rgba(255,255,255,.06);padding:1px 5px;border-radius:4px">/api/queue/resume</code> พร้อม header <code style="font-size:11px;background:rgba(255,255,255,.06);padding:1px 5px;border-radius:4px">x-admin-token</code>
+      </p>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <button class="btn btn-warn" onclick="pauseQueue()">⏸ หยุดคิว</button>
+        <button class="btn btn-success" onclick="resumeQueue()">▶ เล่นต่อ</button>
+        <span id="queue-status-label" style="font-size:13px;color:var(--muted)">สถานะ: กำลังโหลด...</span>
+      </div>
+    </div>
+
   </div>
 
   <!-- Bot -->
@@ -1371,7 +1444,7 @@
     if (id === 'donations') loadDonations();
     if (id === 'overview')  loadOverview();
     if (id === 'themes')    renderThemes();
-    if (id === 'test') { renderTierTestButtons(); updateTestTierLabel(); }
+    if (id === 'test') { renderTierTestButtons(); updateTestTierLabel(); refreshQueueStatus(); }
     if (id === 'bot') {
       loadBotPage();
       if (!botStatusInterval) botStatusInterval = setInterval(updateBotStatus, 2000);
@@ -1449,6 +1522,17 @@
     document.getElementById('cfg-epicEnabled').checked   = !!ea.enabled;
     document.getElementById('cfg-epicMinAmount').value   = ea.minAmount ?? 50;
     document.getElementById('cfg-epicStyle').value       = ea.style || 'random';
+    // Overlay Position
+    const pos = cfg.overlayPosition || 'bottom-center';
+    document.querySelectorAll('#position-grid .pos-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.pos === pos);
+    });
+    document.getElementById('pos-label').textContent = pos;
+    // Webhook
+    const wh = cfg.webhook || {};
+    document.getElementById('cfg-webhookEnabled').checked = !!wh.enabled;
+    document.getElementById('cfg-webhookUrl').value       = wh.url    || '';
+    document.getElementById('cfg-webhookSecret').value   = wh.secret  || '';
     // Provider
     switchProvider(cfg.ttsProvider || 'elevenlabs');
     // Theme
@@ -1700,10 +1784,60 @@
         minAmount: Number(document.getElementById('cfg-epicMinAmount').value) || 50,
         style:     document.getElementById('cfg-epicStyle').value,
       },
+      overlayPosition: document.querySelector('#position-grid .pos-btn.active')?.dataset.pos || 'bottom-center',
     };
     await fetch('/api/config', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
     showToast('✅ บันทึกการตั้งค่าแล้ว');
     loadConfig();
+  }
+
+  function setOverlayPosition(btn) {
+    document.querySelectorAll('#position-grid .pos-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('pos-label').textContent = btn.dataset.pos;
+  }
+
+  async function pauseQueue() {
+    const r = await fetch('/api/queue/pause', { method:'POST', headers:{'Content-Type':'application/json'} });
+    if (r.ok) { showToast('⏸ หยุดคิว Alert แล้ว'); refreshQueueStatus(); }
+    else showToast('❌ เกิดข้อผิดพลาด', true);
+  }
+
+  async function resumeQueue() {
+    const r = await fetch('/api/queue/resume', { method:'POST', headers:{'Content-Type':'application/json'} });
+    if (r.ok) { showToast('▶ เล่น Alert ต่อแล้ว'); refreshQueueStatus(); }
+    else showToast('❌ เกิดข้อผิดพลาด', true);
+  }
+
+  async function refreshQueueStatus() {
+    try {
+      const r = await fetch('/api/queue/status');
+      const d = await r.json();
+      const el = document.getElementById('queue-status-label');
+      if (el) el.innerHTML = d.paused
+        ? '<span style="color:#fbbf24;font-weight:600">⏸ หยุดอยู่</span>'
+        : '<span style="color:#4ade80;font-weight:600">▶ กำลังเล่น</span>';
+    } catch(e) {}
+  }
+
+  async function saveWebhookSettings() {
+    const body = {
+      webhook: {
+        enabled: document.getElementById('cfg-webhookEnabled').checked,
+        url:     document.getElementById('cfg-webhookUrl').value,
+        secret:  document.getElementById('cfg-webhookSecret').value,
+      }
+    };
+    await fetch('/api/config', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+    showToast('✅ บันทึก Webhook แล้ว');
+    loadConfig();
+  }
+
+  async function testWebhook() {
+    const r = await fetch('/api/webhook/test', { method:'POST', headers:{'Content-Type':'application/json'} });
+    const d = await r.json();
+    if (d.ok) showToast('📡 ส่ง Webhook test สำเร็จ!');
+    else showToast('❌ ' + (d.error || 'ไม่สามารถส่งได้'), true);
   }
 
   async function saveSlipSettings() {

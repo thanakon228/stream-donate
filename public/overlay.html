@@ -267,6 +267,13 @@
   }
   #anim-badge.show { opacity:1; }
 
+  #pause-indicator {
+    display:none; position:fixed; top:20px; left:50%; transform:translateX(-50%);
+    background:rgba(0,0,0,.75); color:#fbbf24; border:1px solid #fbbf24;
+    border-radius:12px; padding:6px 16px; font-size:13px; font-weight:700;
+    gap:6px; align-items:center; backdrop-filter:blur(8px); z-index:200;
+  }
+
   /* ══════════════════════════════════════════════════════════
      EPIC ALERT CONTAINER
   ══════════════════════════════════════════════════════════ */
@@ -396,6 +403,7 @@
 
 <div id="queue-badge">รอ: <span id="queue-count">0</span></div>
 <div id="anim-badge"></div>
+<div id="pause-indicator">⏸ หยุดคิวชั่วคราว</div>
 
 <div id="alert-container">
   <div class="alert-box" id="alertBox">
@@ -458,10 +466,11 @@
 
   let currentTheme     = 'purple-galaxy';
   let queue            = [];
-  let isShowing       = false;
-  let alertDuration   = 8000;
-  let lastAnimIdx     = -1;
-  let epicAlertConfig = { enabled: false, minAmount: 50, style: 'random' };
+  let isShowing        = false;
+  let isPaused         = false;
+  let alertDuration    = 8000;
+  let lastAnimIdx      = -1;
+  let epicAlertConfig  = { enabled: false, minAmount: 50, style: 'random' };
 
   // ── Audio helpers ────────────────────────────────────────
   // Detect MIME type from base64 header:
@@ -600,6 +609,28 @@
     });
   }
 
+  // ── Position map ─────────────────────────────────────────
+  const POSITION_STYLES = {
+    'top-left':      { top:'20px',  bottom:'auto', left:'20px',  right:'auto', transform:'none' },
+    'top-center':    { top:'20px',  bottom:'auto', left:'50%',   right:'auto', transform:'translateX(-50%)' },
+    'top-right':     { top:'20px',  bottom:'auto', left:'auto',  right:'20px', transform:'none' },
+    'middle-left':   { top:'50%',   bottom:'auto', left:'20px',  right:'auto', transform:'translateY(-50%)' },
+    'middle-center': { top:'50%',   bottom:'auto', left:'50%',   right:'auto', transform:'translate(-50%,-50%)' },
+    'middle-right':  { top:'50%',   bottom:'auto', left:'auto',  right:'20px', transform:'translateY(-50%)' },
+    'bottom-left':   { top:'auto',  bottom:'40px', left:'20px',  right:'auto', transform:'none' },
+    'bottom-center': { top:'auto',  bottom:'40px', left:'50%',   right:'auto', transform:'translateX(-50%)' },
+    'bottom-right':  { top:'auto',  bottom:'40px', left:'auto',  right:'20px', transform:'none' },
+  };
+
+  function applyOverlayPosition(pos) {
+    const s = POSITION_STYLES[pos] || POSITION_STYLES['bottom-center'];
+    ['alert-container', 'epic-alert-container'].forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      Object.assign(el.style, s);
+    });
+  }
+
   async function loadConfig() {
     try {
       const r   = await fetch('/api/config');
@@ -607,6 +638,7 @@
       alertDuration = (cfg.alertDuration || 8) * 1000;
       currentTheme  = cfg.theme || 'purple-galaxy';
       document.body.className = 'theme-' + currentTheme;
+      applyOverlayPosition(cfg.overlayPosition || 'bottom-center');
 
       // Epic alert config
       const ea = cfg.epicAlert || {};
@@ -622,6 +654,19 @@
   socket.on('new_donation', (data) => {
     queue.push(data);
     updateQueueBadge();
+    if (!isShowing && !isPaused) processQueue();
+  });
+
+  socket.on('queue_pause', () => {
+    isPaused = true;
+    const ind = document.getElementById('pause-indicator');
+    if (ind) ind.style.display = 'flex';
+  });
+
+  socket.on('queue_resume', () => {
+    isPaused = false;
+    const ind = document.getElementById('pause-indicator');
+    if (ind) ind.style.display = 'none';
     if (!isShowing) processQueue();
   });
 
@@ -638,7 +683,7 @@
   }
 
   async function processQueue() {
-    if (queue.length === 0) { isShowing = false; return; }
+    if (isPaused || queue.length === 0) { isShowing = false; return; }
     isShowing = true;
     const donation = queue.shift();
     updateQueueBadge();

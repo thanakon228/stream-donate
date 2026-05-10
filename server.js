@@ -110,11 +110,19 @@ const DEFAULTS = {
   },
   // ── Lock Amount ──
   lockAmount: false,
+  // ── Overlay Position ──
+  overlayPosition: 'bottom-center', // top-left/top-center/top-right/middle-*/bottom-*
   // ── Epic Alerts ──
   epicAlert: {
     enabled:   false,
     minAmount: 50,
     style:     'random',  // 'random' | '1'-'5'
+  },
+  // ── Webhook ──
+  webhook: {
+    enabled: false,
+    url:     '',
+    secret:  '',  // HMAC-SHA256 signing secret (optional)
   },
 };
 
@@ -137,6 +145,7 @@ function deepMerge(base, saved) {
     tiers:      saved.tiers ?? base.tiers,
     ttsRead:    { ...base.ttsRead,    ...(saved.ttsRead    || {}) },
     epicAlert:  { ...base.epicAlert,  ...(saved.epicAlert  || {}) },
+    webhook:    { ...base.webhook,    ...(saved.webhook    || {}) },
   };
 }
 
@@ -241,6 +250,31 @@ function saveDonation(d) {
   fs.writeFileSync(tmp, JSON.stringify(list.slice(0, 500), null, 2));
   fs.renameSync(tmp, DONATIONS_FILE);
 }
+
+// ─── Webhook ─────────────────────────────────────────────────────────────────
+
+const crypto = require('crypto');
+
+async function dispatchWebhook(event, data) {
+  const cfg = loadConfig();
+  if (!cfg.webhook?.enabled || !cfg.webhook?.url) return;
+  const payload = JSON.stringify({ event, data, timestamp: new Date().toISOString() });
+  const headers = { 'Content-Type': 'application/json', 'X-Stream-Donate-Event': event };
+  if (cfg.webhook.secret) {
+    const sig = crypto.createHmac('sha256', cfg.webhook.secret).update(payload).digest('hex');
+    headers['X-Stream-Donate-Signature'] = `sha256=${sig}`;
+  }
+  try {
+    const r = await fetch(cfg.webhook.url, { method: 'POST', headers, body: payload });
+    console.log(`[Webhook] ${event} → ${cfg.webhook.url} (${r.status})`);
+  } catch (e) {
+    console.error(`[Webhook] ${event} failed:`, e.message);
+  }
+}
+
+// ─── Queue Pause State ────────────────────────────────────────────────────────
+
+let queuePaused = false;
 
 // ─── Auth & Rate Limiting ────────────────────────────────────────────────────
 
@@ -651,6 +685,7 @@ app.post('/api/donate', limitDonate, async (req, res) => {
 
   saveDonation(donation);
   io.emit('new_donation', { ...donation, audioBase64, tier });
+  dispatchWebhook('donation.new', donation).catch(() => {});
   res.json({ ok: true, donation });
 });
 
@@ -955,6 +990,7 @@ async function fireBotDonation() {
 
   saveDonation(donation);
   io.emit('new_donation', { ...donation, audioBase64, tier: botTier });
+  dispatchWebhook('donation.bot', donation).catch(() => {});
   console.log(`🤖 Bot fired: "${donation.message}"`);
 }
 
@@ -988,6 +1024,35 @@ app.post('/api/bot/stop', requireAuth, (req, res) => {
 app.post('/api/bot/fire', requireAuth, async (req, res) => {
   await fireBotDonation();
   res.json({ ok: true });
+});
+
+// ─── Queue Pause/Resume ──────────────────────────────────────────────────────
+
+app.get('/api/queue/status', (req, res) => {
+  res.json({ paused: queuePaused });
+});
+
+app.post('/api/queue/pause', requireAuth, (req, res) => {
+  queuePaused = true;
+  io.emit('queue_pause');
+  res.json({ ok: true, paused: true });
+});
+
+app.post('/api/queue/resume', requireAuth, (req, res) => {
+  queuePaused = false;
+  io.emit('queue_resume');
+  res.json({ ok: true, paused: false });
+});
+
+// ─── Webhook Test ─────────────────────────────────────────────────────────────
+
+app.post('/api/webhook/test', requireAuth, async (req, res) => {
+  try {
+    await dispatchWebhook('test', { message: 'Webhook test from Stream Donate', timestamp: new Date().toISOString() });
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
 });
 
 // ─── Socket ──────────────────────────────────────────────────────────────────
