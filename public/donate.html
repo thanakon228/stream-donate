@@ -1100,8 +1100,8 @@
       // Reset epic picker
       selectedEpicStyle = 'random';
       document.querySelectorAll('.epic-btn').forEach(b => b.classList.remove('selected'));
-      const randomBtn = document.querySelector('.epic-btn[data-style="random"]');
-      if (randomBtn) randomBtn.classList.add('selected');
+      const epicRandomBtn = document.querySelector('.epic-btn[data-style="random"]');
+      if (epicRandomBtn) epicRandomBtn.classList.add('selected');
       updateEpicPicker();
       if (bothProvidersAvail) {
         const defaultBtn = document.querySelector(`[data-provider="${defaultProvider}"]`);
