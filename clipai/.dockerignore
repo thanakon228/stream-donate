@@ -1,0 +1,12 @@
+# ไม่ copy เข้า Docker image
+__pycache__/
+*.pyc
+*.pyo
+.env
+.git/
+output/
+*.mp4
+*.mp3
+*.wav
+venv/
+.venv/

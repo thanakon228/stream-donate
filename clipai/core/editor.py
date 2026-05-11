@@ -1,3 +1,4 @@
+# โมดูลตัดคลิป — เรียก FFmpeg ผ่าน subprocess เพื่อตัดและใส่เอฟเฟคลงบนคลิป
 import os
 import subprocess
 from effects.presets import build_filter_string, get_preset
@@ -12,29 +13,32 @@ def cut_clip(
     custom_effects: list[str] | None = None,
 ) -> str:
     """
-    ตัดคลิปจาก source video
-    return: path ของคลิปที่ตัดแล้ว
+    ตัดคลิปเดียวจากไฟล์ต้นฉบับตาม timestamp ใน clip dict
+    คืน path ของไฟล์คลิปที่ตัดแล้ว
     """
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     start: str = clip["start"]
     end: str = clip["end"]
+    # แปลงชื่อคลิปให้ใช้เป็นชื่อไฟล์ได้ (ไม่มีช่องว่างหรือ /)
     title: str = clip["title"].replace(" ", "_").replace("/", "-")
     output_path = f"{OUTPUT_DIR}/clip_{index:02d}_{title}.mp4"
 
+    # ถ้าระบุ custom_effects มา ใช้แทน preset
     if custom_effects:
         vf_string = build_filter_string(custom_effects)
     else:
         vf_string = get_preset(preset)
 
-    cmd: list[str] = ["ffmpeg", "-y"]
-    cmd += ["-ss", start, "-to", end]
-    cmd += ["-i", source_path]
+    # สร้างคำสั่ง FFmpeg ทีละส่วนเพื่อให้อ่านง่าย
+    cmd: list[str] = ["ffmpeg", "-y"]              # -y = เขียนทับถ้าไฟล์มีอยู่แล้ว
+    cmd += ["-ss", start, "-to", end]              # กำหนดช่วงเวลาที่ต้องการ
+    cmd += ["-i", source_path]                     # ไฟล์วิดีโอต้นทาง
     if vf_string:
-        cmd += ["-vf", vf_string]
-    cmd += ["-c:v", "libx264"]
-    cmd += ["-c:a", "aac"]
-    cmd += ["-movflags", "+faststart"]
+        cmd += ["-vf", vf_string]                  # ใส่เอฟเฟค (ถ้ามี)
+    cmd += ["-c:v", "libx264"]                     # เข้ารหัสวิดีโอด้วย H.264
+    cmd += ["-c:a", "aac"]                         # เข้ารหัสเสียงด้วย AAC
+    cmd += ["-movflags", "+faststart"]             # เล่นได้เลยก่อน download เสร็จ (web-friendly)
     cmd += [output_path]
 
     result = subprocess.run(cmd, capture_output=True, text=True)
@@ -50,7 +54,7 @@ def cut_all_clips(
     clips: list[dict],
     preset: str = "hype",
 ) -> list[str]:
-    """ตัดทุก clip และ return list ของ output path"""
+    """วนตัดทุก clip ใน list แล้วคืน list ของ path ไฟล์ที่ตัดแล้ว"""
     output_paths: list[str] = []
     for i, clip in enumerate(clips):
         print(f"  ✂️  ตัดคลิป [{i+1}/{len(clips)}]: {clip['title']}")

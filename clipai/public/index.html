@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>ClipAI</title>
+  <style>
+    /* ── รีเซ็ตและฐาน ─────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: #08080f;
+      color: #d0d0e0;
+      min-height: 100vh;
+      padding-bottom: 48px;
+    }
+
+    /* ── Header ──────────────────────────────────────────────── */
+    header {
+      background: linear-gradient(135deg, #12082a 0%, #0e1a38 100%);
+      border-bottom: 1px solid #7c3aed44;
+      padding: 22px 16px 18px;
+      text-align: center;
+    }
+    header h1 {
+      font-size: 2.2rem;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      background: linear-gradient(90deg, #a855f7, #3b82f6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    header p { color: #666; font-size: 0.88rem; margin-top: 4px; }
+
+    /* ── Layout ──────────────────────────────────────────────── */
+    .container { max-width: 600px; margin: 0 auto; padding: 20px 14px; }
+
+    /* ── Card ────────────────────────────────────────────────── */
+    .card {
+      background: #10101c;
+      border: 1px solid #25253a;
+      border-radius: 18px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    .card-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #666;
+      margin-bottom: 16px;
+    }
+
+    /* ── Form ────────────────────────────────────────────────── */
+    label {
+      display: block;
+      font-size: 0.78rem;
+      color: #777;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 6px;
+    }
+    input[type="url"], input[type="text"], textarea, select {
+      width: 100%;
+      background: #18182a;
+      border: 1.5px solid #2e2e48;
+      border-radius: 12px;
+      padding: 13px 14px;
+      color: #e0e0f0;
+      font-size: 1rem;
+      margin-bottom: 16px;
+      outline: none;
+      transition: border-color 0.15s;
+      -webkit-appearance: none;
+    }
+    input:focus, textarea:focus, select:focus { border-color: #7c3aed; }
+    textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
+    select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23666' d='M6 8L0 0h12z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px; cursor: pointer; }
+
+    /* ── Grid 2 คอลัมน์ ─────────────────────────────────────── */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    /* ── ปุ่มหลัก ────────────────────────────────────────────── */
+    .btn-run {
+      width: 100%;
+      padding: 17px;
+      background: linear-gradient(135deg, #7c3aed, #2563eb);
+      border: none;
+      border-radius: 14px;
+      color: #fff;
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.15s;
+      -webkit-tap-highlight-color: transparent;
+      margin-top: 4px;
+    }
+    .btn-run:active { transform: scale(0.98); }
+    .btn-run:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+    /* ── Progress ─────────────────────────────────────────────── */
+    #progressSection { display: none; }
+
+    .log-box {
+      background: #0a0a12;
+      border: 1px solid #1e1e30;
+      border-radius: 12px;
+      padding: 14px;
+      max-height: 260px;
+      overflow-y: auto;
+      font-family: 'Courier New', 'Consolas', monospace;
+      font-size: 0.84rem;
+      line-height: 1.7;
+      scroll-behavior: smooth;
+    }
+    .log-line { color: #8888aa; animation: slideIn 0.2s ease; }
+    .log-line.success { color: #22c55e; font-weight: 600; }
+    .log-line.error   { color: #ef4444; font-weight: 600; }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(3px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Spinner ──────────────────────────────────────────────── */
+    .spinner {
+      display: inline-block;
+      width: 15px; height: 15px;
+      border: 2px solid #ffffff33;
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.65s linear infinite;
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── คลิป results ─────────────────────────────────────────── */
+    #resultsSection { display: none; }
+
+    .results-title {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: #aaa;
+      margin-bottom: 12px;
+      padding-left: 2px;
+    }
+
+    .clip-card {
+      background: #131320;
+      border: 1px solid #2a2a42;
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 12px;
+      transition: border-color 0.15s;
+    }
+    .clip-card:hover { border-color: #4a4a70; }
+
+    .clip-index {
+      font-size: 0.72rem;
+      color: #7c3aed;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 5px;
+    }
+    .clip-title {
+      font-size: 1.02rem;
+      font-weight: 700;
+      color: #c8c8ff;
+      margin-bottom: 8px;
+    }
+    .clip-meta {
+      display: flex;
+      gap: 14px;
+      font-size: 0.8rem;
+      color: #666;
+      margin-bottom: 14px;
+    }
+    .clip-score { color: #f59e0b; }
+
+    .btn-dl {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      background: #16a34a;
+      color: #fff;
+      text-decoration: none;
+      border-radius: 10px;
+      padding: 11px 18px;
+      font-size: 0.92rem;
+      font-weight: 700;
+      transition: background 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-dl:active { background: #15803d; }
+
+    /* ── Empty state ──────────────────────────────────────────── */
+    .empty {
+      text-align: center;
+      color: #555;
+      padding: 28px;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>ClipAI</h1>
+  <p>ตัดคลิปไฮไลท์อัตโนมัติด้วย AI</p>
+</header>
+
+<div class="container">
+
+  <!-- ── ฟอร์ม ──────────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-title">ตั้งค่าการตัดคลิป</div>
+
+    <label>URL วิดีโอ / สตรีม</label>
+    <input type="url" id="url" placeholder="https://youtube.com/watch?v=...">
+
+    <label>ต้องการไฮไลท์แบบไหน</label>
+    <textarea id="prompt">หาจุดที่น่าสนใจและน่าตื่นเต้นที่สุด</textarea>
+
+    <div class="grid-2">
+      <div>
+        <label>เอฟเฟค (Preset)</label>
+        <select id="preset">
+          <option value="hype">Hype — เกม/แอ็กชัน</option>
+          <option value="cinematic">Cinematic — สโลว์โมชัน</option>
+          <option value="gaming">Gaming — นีออน</option>
+          <option value="clean">Clean — เรียบๆ</option>
+          <option value="dramatic">Dramatic — ดราม่า</option>
+        </select>
+      </div>
+      <div>
+        <label>Whisper Model</label>
+        <select id="model">
+          <option value="base">Base (เร็ว)</option>
+          <option value="small">Small (แม่น)</option>
+          <option value="tiny">Tiny (เร็วมาก)</option>
+          <option value="medium">Medium (แม่นมาก)</option>
+        </select>
+      </div>
+    </div>
+
+    <button class="btn-run" id="runBtn" onclick="startRun()">เริ่มตัดคลิป</button>
+  </div>
+
+  <!-- ── ความคืบหน้า ────────────────────────────────────────── -->
+  <div id="progressSection">
+    <div class="card">
+      <div class="card-title">ความคืบหน้า</div>
+      <div class="log-box" id="logBox"></div>
+    </div>
+  </div>
+
+  <!-- ── ผลลัพธ์ ────────────────────────────────────────────── -->
+  <div id="resultsSection">
+    <div class="results-title">คลิปที่ตัดแล้ว</div>
+    <div id="clipsList"></div>
+  </div>
+
+</div><!-- /container -->
+
+<script>
+  let currentJobId = null;
+  let lastMsgIndex = 0;
+  let sseSource = null;
+
+  async function startRun() {
+    const url = document.getElementById('url').value.trim();
+    if (!url) { alert('กรุณาใส่ URL วิดีโอ'); return; }
+
+    // รีเซ็ต UI
+    setRunning(true);
+    resetProgress();
+
+    // เริ่ม job บน server
+    const res = await fetch('/api/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        url,
+        prompt: document.getElementById('prompt').value,
+        preset: document.getElementById('preset').value,
+        model:  document.getElementById('model').value,
+      }),
+    }).catch(() => null);
+
+    if (!res || !res.ok) {
+      addLog('ไม่สามารถเชื่อมต่อ server ได้', 'error');
+      setRunning(false);
+      return;
+    }
+
+    const { job_id } = await res.json();
+    currentJobId = job_id;
+    lastMsgIndex = 0;
+
+    connectSSE(job_id);
+  }
+
+  function connectSSE(jobId) {
+    // ปิด connection เดิมถ้ามี
+    if (sseSource) sseSource.close();
+
+    sseSource = new EventSource(`/api/status/${jobId}?from=${lastMsgIndex}`);
+
+    // รับ log แต่ละบรรทัด
+    sseSource.onmessage = (e) => {
+      addLog(e.data);
+      lastMsgIndex++;
+    };
+
+    // event เสร็จ/ผิดพลาด
+    sseSource.addEventListener('done', async (e) => {
+      sseSource.close();
+      if (e.data === 'error') {
+        setRunning(false);
+        return;
+      }
+      // โหลดรายการคลิปและแสดงผล
+      const data = await fetch(`/api/clips/${jobId}`).then(r => r.json());
+      showClips(data.clips);
+      setRunning(false);
+    });
+
+    // reconnect อัตโนมัติเมื่อ connection หลุด (ยกเว้นถ้าเสร็จแล้ว)
+    sseSource.onerror = () => {
+      sseSource.close();
+      if (!currentJobId) return;
+      setTimeout(() => connectSSE(jobId), 2000);
+    };
+  }
+
+  function resetProgress() {
+    document.getElementById('progressSection').style.display = 'block';
+    document.getElementById('resultsSection').style.display = 'none';
+    document.getElementById('logBox').innerHTML = '';
+    document.getElementById('clipsList').innerHTML = '';
+  }
+
+  function addLog(msg, type = '') {
+    const box = document.getElementById('logBox');
+    const line = document.createElement('div');
+    line.className = 'log-line' + (type ? ' ' + type : '');
+    line.textContent = msg;
+    box.appendChild(line);
+    box.scrollTop = box.scrollHeight;
+
+    // ตรวจจับบรรทัด error/success สำหรับสีพิเศษ
+    if (msg.startsWith('เกิดข้อผิดพลาด')) line.className = 'log-line error';
+    if (msg.startsWith('เสร็จสิ้น'))       line.className = 'log-line success';
+  }
+
+  function setRunning(running) {
+    const btn = document.getElementById('runBtn');
+    btn.disabled = running;
+    btn.innerHTML = running
+      ? '<span class="spinner"></span>กำลังประมวลผล...'
+      : 'เริ่มตัดคลิปใหม่';
+    if (!running) currentJobId = null;
+  }
+
+  function showClips(clips) {
+    const section = document.getElementById('resultsSection');
+    const list    = document.getElementById('clipsList');
+
+    if (!clips || !clips.length) {
+      list.innerHTML = '<div class="empty">ไม่พบคลิปไฮไลท์จาก transcript นี้</div>';
+    } else {
+      list.innerHTML = clips.map((c, i) => `
+        <div class="clip-card">
+          <div class="clip-index">คลิปที่ ${i + 1}</div>
+          <div class="clip-title">${esc(c.title)}</div>
+          <div class="clip-meta">
+            <span>${esc(c.start)} → ${esc(c.end)}</span>
+            <span class="clip-score">${'★'.repeat(c.score || 0)}</span>
+          </div>
+          <a class="btn-dl" href="/api/download/${esc(c.filename)}" download>
+            ⬇ ดาวน์โหลดคลิป
+          </a>
+        </div>
+      `).join('');
+    }
+
+    section.style.display = 'block';
+    section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // escape HTML ป้องกัน XSS จากชื่อคลิปหรือ filename
+  function esc(str) {
+    return String(str ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+</script>
+
+</body>
+</html>
